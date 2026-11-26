@@ -6,6 +6,7 @@ import {
   myBookingRequests,
   myListings,
   mySeeks,
+  myStats,
   renewListing,
   setBookingStatus,
   setListingStatus,
@@ -21,6 +22,8 @@ import { bindSeekActions, seekOwnerCard } from "./seeks.js";
 import { confirmWaText, esc, formatDay, formatWhen, priceLabel, shiftLabel, typeLabel, waLink } from "../format.js";
 import { isVenue } from "../geo.js";
 import { bindTurnero, calFor, turneroHtml } from "../turnero-ui.js";
+import { recentDays } from "../stats.js";
+import { statsPanelHtml } from "../stats-ui.js";
 import { toast } from "../toast.js";
 
 function canModerate(session) {
@@ -51,7 +54,7 @@ export async function renderAccount(view, route, session) {
     return;
   }
 
-  const [listings, seeks, requests] = await Promise.all([myListings(), mySeeks(), myBookingRequests()]);
+  const [listings, seeks, requests, stats] = await Promise.all([myListings(), mySeeks(), myBookingRequests(), myStats()]);
   const plan = session.profile.plan === "pro" ? "pro" : "gratis";
   const turnero = session.profile.booking_enabled || session.profile.plan === "pro";
   view.innerHTML = `
@@ -60,6 +63,7 @@ export async function renderAccount(view, route, session) {
       <p class="lede">${esc(session.profile.email || "")}</p>
     </section>
     <p class="plan-note">Plan <strong>${plan}</strong> · hasta ${esc(session.profile.max_listings)} aviso(s) activo(s). ${turnero ? "El turnero está habilitado en tus quinchos y salones nuevos." : "El turnero no está incluido en este plan."}</p>
+    ${statsPanelHtml(listings, seeks, stats, recentDays(7))}
     <form class="stack profile-form" data-profile>
       <label class="field">Nombre<input name="full_name" required value="${esc(session.profile.full_name)}" /></label>
       <label class="field">WhatsApp<input name="whatsapp" required inputmode="tel" value="${esc(session.profile.whatsapp)}" /></label>

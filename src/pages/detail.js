@@ -1,4 +1,4 @@
-import { getListing, isDemo, listSlots, photoUrl, reportListing, requestBooking } from "../api.js";
+import { getListing, isDemo, listSlots, maybeTrackView, photoUrl, reportListing, requestBooking, trackStat } from "../api.js";
 import { render } from "../bus.js";
 import { upsellHtml } from "../cards.js";
 import { isPublicListing } from "../filter.js";
@@ -83,7 +83,7 @@ export async function renderDetail(view, route, session) {
       </aside>
       <button type="button" class="btn btn-ghost btn-block" data-report>Denunciar aviso</button>
       <div class="sticky-cta">
-        <a class="btn btn-wa" target="_blank" rel="noopener noreferrer" href="${esc(waLink(listing.whatsapp, listingWaText(listing)))}">Consultar por WhatsApp</a>
+        <a class="btn btn-wa" data-stat="whatsapp" target="_blank" rel="noopener noreferrer" href="${esc(waLink(listing.whatsapp, listingWaText(listing)))}">Consultar por WhatsApp</a>
       </div>
       <div class="sheet-back" data-close-report hidden></div>
       <form class="sheet" data-report-form hidden>
@@ -99,7 +99,16 @@ export async function renderDetail(view, route, session) {
       ${shareFallbackHtml({ title: listing.title, text: shareText, url: shareUrl })}
     </article>`;
 
-  bindShare(view, { title: listing.title, text: shareText, url: shareUrl });
+  bindShare(view, {
+    title: listing.title,
+    text: shareText,
+    url: shareUrl,
+    onShare: () => trackStat("listing", listing.id, "share"),
+  });
+  view.querySelectorAll("[data-stat=whatsapp]").forEach((link) => {
+    link.addEventListener("click", () => trackStat("listing", listing.id, "whatsapp"));
+  });
+  if (isPublicListing(listing)) maybeTrackView("listing", listing.id);
 
   if (venue && listing.booking_enabled) {
     bindTurnero(view.querySelector("[data-testid=turnero]"), {

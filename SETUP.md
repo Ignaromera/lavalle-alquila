@@ -141,7 +141,9 @@ Cada aviso pide una dirección (calle y número, o una referencia). En la ficha 
 
 En un quincho o salón, quien publica define los horarios con nombre, hora de inicio, hora de fin y precio (por ejemplo Mediodía 11:00–18:00 y Noche 20:00–04:00), o elige Día completo con su horario. El turnero muestra esos nombres, las horas y el precio.
 
-Si ya corriste `schema.sql` antes de este cambio, en el SQL Editor ejecutá [`supabase/migration-direccion-turnos.sql`](supabase/migration-direccion-turnos.sql) una sola vez. Una instalación nueva no lo necesita: `schema.sql` ya trae la dirección y los horarios.
+Si ya corriste `schema.sql` antes, en el SQL Editor ejecutá una sola vez los archivos que te falten: [`supabase/migration-direccion-turnos.sql`](supabase/migration-direccion-turnos.sql) y [`supabase/migration-estadisticas.sql`](supabase/migration-estadisticas.sql). Una instalación nueva no los necesita: `schema.sql` ya trae la dirección, los horarios y las estadísticas.
+
+Las visitas, los compartidos y los clics a WhatsApp se guardan como un número por día. No hay datos de la persona. Cada navegador cuenta una visita por aviso y por día. Solo el dueño y un admin pueden leer esos números.
 
 Quien alquila marca qué días ofrece cada horario. Otra persona pide ese turno con nombre, WhatsApp, cantidad de gente y una nota. En tu cuenta ves el pedido: **Confirmar y abrir WhatsApp** manda el mensaje ya escrito y deja el turno tomado. **Rechazar** lo vuelve a liberar. No puede haber dos reservas confirmadas del mismo día y turno: lo impide un índice único.
 

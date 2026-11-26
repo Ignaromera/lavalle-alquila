@@ -406,11 +406,62 @@ export function createDemoStore() {
     },
   ];
 
-  return { profiles, listings, slots, requests, reports, seeks };
+  const store = { profiles, listings, slots, requests, reports, seeks, stats: [] };
+  seedStats(store);
+  return store;
+}
+
+function hashText(value) {
+  let hash = 0;
+  for (const char of String(value)) hash = (hash * 33 + char.charCodeAt(0)) >>> 0;
+  return hash;
+}
+
+function seedStats(store) {
+  const subjects = [
+    ...store.listings.filter((item) => item.status !== "deleted").map((item) => ({ type: "listing", id: item.id })),
+    ...store.seeks.filter((item) => item.status === "active").map((item) => ({ type: "seek", id: item.id })),
+  ];
+  for (const subject of subjects) {
+    for (let ago = 13; ago >= 0; ago -= 1) {
+      const day = isoDay(addDays(-ago));
+      const base = 8 + (hashText(`${subject.id}:${day}`) % 22);
+      const view = base + (ago < 3 ? 6 : 0);
+      const share = Math.max(1, Math.round(view * 0.16));
+      const whatsapp = Math.max(0, Math.round(view * 0.09));
+      store.stats.push(
+        { subject_type: subject.type, subject_id: subject.id, kind: "view", day, count: view },
+        { subject_type: subject.type, subject_id: subject.id, kind: "share", day, count: share },
+        { subject_type: subject.type, subject_id: subject.id, kind: "whatsapp", day, count: whatsapp },
+      );
+    }
+  }
+}
+
+export function trackStat(store, subjectType, subjectId, kind) {
+  const listing = subjectType === "listing" ? store.listings.find((item) => item.id === subjectId) : null;
+  const seek = subjectType === "seek" ? store.seeks.find((item) => item.id === subjectId) : null;
+  const visible = listing
+    ? listing.status === "active" && new Date(listing.expires_at) > new Date()
+    : seek && seek.status === "active" && new Date(seek.expires_at) > new Date();
+  if (!visible || !["view", "share", "whatsapp"].includes(kind)) return;
+  const day = isoDay(new Date());
+  const row = store.stats.find((item) => item.subject_type === subjectType && item.subject_id === subjectId && item.kind === kind && item.day === day);
+  if (row) row.count += 1;
+  else store.stats.push({ subject_type: subjectType, subject_id: subjectId, kind, day, count: 1 });
+}
+
+export function statsForOwner(store, ownerId) {
+  const listings = new Set(store.listings.filter((item) => item.owner_id === ownerId).map((item) => item.id));
+  const seeks = new Set(store.seeks.filter((item) => item.owner_id === ownerId).map((item) => item.id));
+  return store.stats.filter((row) => (
+    (row.subject_type === "listing" && listings.has(row.subject_id))
+    || (row.subject_type === "seek" && seeks.has(row.subject_id))
+  ));
 }
 
 export function emptyStore() {
-  return { profiles: [], listings: [], slots: [], requests: [], reports: [], seeks: [] };
+  return { profiles: [], listings: [], slots: [], requests: [], reports: [], seeks: [], stats: [] };
 }
 
 function findProfile(store, id) {

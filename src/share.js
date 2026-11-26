@@ -57,6 +57,7 @@ export function bindShare(root, payload) {
   };
   buttons.forEach((button) => {
     button.addEventListener("click", async () => {
+      payload.onShare?.();
       const result = await shareItem(payload);
       if (result === "fallback") open();
     });
