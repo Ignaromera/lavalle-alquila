@@ -4,7 +4,7 @@ Todo corre en el plan gratuito: GitHub Pages para la página y Supabase para las
 
 El repositorio es `Ignaromera/lavalle-alquila`. Cuando Pages esté activo, el sitio va a quedar en:
 
-`https://ignaromera.github.io/lavalle-alquila/`
+`https://lavallealquila.com.ar/`
 
 Hasta que pegues las claves, quien abra el sitio ve el **modo ejemplo** (avisos ficticios, marcados como ejemplo).
 
@@ -51,14 +51,14 @@ La página pide primero **Entrar con Google** y, debajo, el email. El correo de 
 1. **Authentication** → **Providers** → **Email**: prendido. **Confirm email** activado.
 2. **Authentication** → **Providers** → **Google**: prendido, con el Client ID y el Client Secret de Google Cloud.
 3. En Google Cloud, la pantalla de consentimiento tiene que apuntar a:
-   - `https://ignaromera.github.io/lavalle-alquila/privacidad.html`
-   - `https://ignaromera.github.io/lavalle-alquila/terminos.html`
+   - `https://lavallealquila.com.ar/privacidad.html`
+   - `https://lavallealquila.com.ar/terminos.html`
 4. En el cliente OAuth de Google, el redirect autorizado de Supabase es el que muestra el panel (algo como `https://TU_PROYECTO.supabase.co/auth/v1/callback`).
 5. **Authentication** → **URL configuration**:
-   - **Site URL**: `https://ignaromera.github.io/lavalle-alquila/`
+   - **Site URL**: `https://lavallealquila.com.ar/`
    - **Redirect URLs**, agregá estas (con y sin barra final):
-     - `https://ignaromera.github.io/lavalle-alquila/`
-     - `https://ignaromera.github.io/lavalle-alquila`
+     - `https://lavallealquila.com.ar/`
+     - `https://lavallealquila.com.ar`
      - `http://127.0.0.1:5173`
      - `http://localhost:5173`
 
@@ -94,7 +94,7 @@ Para probar en tu máquina antes de subir: `npm install` y `npm run dev`.
 2. **Build and deployment** → **Source**: **GitHub Actions**.
 3. El archivo [`.github/workflows/pages.yml`](.github/workflows/pages.yml) ya publica `dist/` en cada push a `main`.
 4. Entrá a **Actions** y esperá a que el workflow termine en verde.
-5. Abrí `https://ignaromera.github.io/lavalle-alquila/`.
+5. Abrí `https://lavallealquila.com.ar/`.
 
 La primera vez puede tardar un par de minutos. Si ves el cartel de modo ejemplo, las claves no llegaron al build: revisá que `src/config.js` esté en el commit que se publicó.
 

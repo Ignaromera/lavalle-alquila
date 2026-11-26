@@ -17,7 +17,7 @@ const session = {
 };
 
 function installDom() {
-  const win = new Window({ url: "https://ignaromera.github.io/lavalle-alquila/" });
+  const win = new Window({ url: "https://lavallealquila.com.ar/" });
   globalThis.window = win;
   globalThis.document = win.document;
   globalThis.HTMLElement = win.HTMLElement;

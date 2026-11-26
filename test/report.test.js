@@ -62,7 +62,7 @@ function headerValue(headers, name) {
 }
 
 function installDom() {
-  const win = new Window({ url: "https://ignaromera.github.io/lavalle-alquila/#/aviso/" + LISTING_ID });
+  const win = new Window({ url: "https://lavallealquila.com.ar/#/aviso/" + LISTING_ID });
   globalThis.window = win;
   globalThis.document = win.document;
   globalThis.location = win.location;

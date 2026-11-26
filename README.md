@@ -1,6 +1,6 @@
 # Lavalle Alquila
 
-Avisos de alquiler entre vecinos de Lavalle, Mendoza: casas, departamentos, locales, terrenos, quinchos y salones. Se consulta por WhatsApp. El sitio es estático y se puede publicar gratis en GitHub Pages. Los datos viven en el plan gratis de Supabase.
+Avisos de alquiler entre vecinos de Lavalle, Mendoza: casas, departamentos, locales, terrenos, quinchos y salones. Se consulta por WhatsApp. Está en línea en [lavallealquila.com.ar](https://lavallealquila.com.ar/). El sitio es estático y se publica en GitHub Pages. Los datos viven en el plan gratis de Supabase.
 
 Si todavía no pegaste las claves, la app abre en **modo ejemplo** con avisos ficticios marcados como tales. Sirve para recorrerla antes de crear el proyecto.
 
