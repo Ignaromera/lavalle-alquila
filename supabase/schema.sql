@@ -236,6 +236,7 @@ create table public.listings (
   price_ars integer not null check (price_ars between 1000 and 200000000),
   price_unit text not null default 'mes' check (price_unit in ('mes', 'dia', 'turno')),
   district text not null references public.districts (name),
+  address text not null,
   requirements text not null default '',
   pets_allowed boolean not null default false,
   guarantee_required boolean not null default true,
@@ -254,6 +255,7 @@ create table public.listings (
   constraint listing_title check (char_length(btrim(title)) between 8 and 80),
   constraint listing_description check (char_length(btrim(description)) between 20 and 2000),
   constraint listing_requirements check (char_length(requirements) <= 500),
+  constraint listing_address check (char_length(btrim(address)) between 4 and 160),
   constraint listing_photos check (cardinality(photo_urls) <= 6),
   constraint listing_capacity check (capacity is null or capacity between 1 and 2000),
   constraint listing_booking_type check (booking_enabled = false or type in ('quincho', 'salon'))
@@ -300,6 +302,7 @@ begin
     new.price_ars := old.price_ars;
     new.price_unit := old.price_unit;
     new.district := old.district;
+    new.address := old.address;
     new.requirements := old.requirements;
     new.pets_allowed := old.pets_allowed;
     new.guarantee_required := old.guarantee_required;
@@ -374,11 +377,16 @@ begin
     new.pets_allowed := false;
     new.guarantee_required := false;
     if new.price_unit not in ('dia', 'turno') then
-      raise exception 'Indicá si el precio es por día o por turno';
+      raise exception 'Definí si alquilás por turnos o el día completo';
     end if;
     if new.capacity is null or new.capacity < 1 or new.capacity > 2000 then
       raise exception 'Indicá la capacidad del lugar';
     end if;
+  end if;
+
+  new.address := btrim(coalesce(new.address, ''));
+  if char_length(new.address) < 4 then
+    raise exception 'Escribí la dirección: calle y número, o una referencia para llegar';
   end if;
 
   if not public.point_in_lavalle(new.lat, new.lng) then
@@ -468,6 +476,53 @@ $$;
 revoke all on function public.renew_listing(uuid) from public;
 grant execute on function public.renew_listing(uuid) to authenticated;
 
+-- Horarios de quinchos y salones: nombre, desde, hasta y precio.
+create table public.listing_offers (
+  id uuid primary key default gen_random_uuid(),
+  listing_id uuid not null references public.listings (id) on delete cascade,
+  name text not null check (char_length(btrim(name)) between 2 and 40),
+  starts_at time not null,
+  ends_at time not null,
+  price_ars integer not null check (price_ars between 1000 and 200000000),
+  sort_order integer not null default 0,
+  constraint offer_times check (starts_at <> ends_at)
+);
+
+create index listing_offers_listing_idx on public.listing_offers (listing_id, sort_order);
+
+alter table public.listing_offers enable row level security;
+
+create policy offers_select on public.listing_offers
+  for select to anon, authenticated
+  using (
+    exists (
+      select 1 from public.listings l
+      where l.id = listing_offers.listing_id
+        and (
+          (l.status = 'active' and l.expires_at > now())
+          or l.owner_id = auth.uid()
+          or public.is_admin()
+        )
+    )
+  );
+
+create policy offers_write on public.listing_offers
+  for all to authenticated
+  using (
+    exists (
+      select 1 from public.listings l
+      where l.id = listing_offers.listing_id and l.owner_id = auth.uid()
+    )
+  )
+  with check (
+    exists (
+      select 1 from public.listings l
+      where l.id = listing_offers.listing_id
+        and l.owner_id = auth.uid()
+        and l.type in ('quincho', 'salon')
+    )
+  );
+
 -- Vista pública: incluye el WhatsApp solo de avisos vigentes.
 -- security_invoker = false a propósito, para poder mostrar el teléfono
 -- sin abrir la tabla de perfiles. El where es el límite.
@@ -482,6 +537,7 @@ select
   l.price_ars,
   l.price_unit,
   l.district,
+  l.address,
   l.requirements,
   l.pets_allowed,
   l.guarantee_required,
@@ -496,7 +552,18 @@ select
   l.expires_at,
   l.created_at,
   p.full_name as owner_name,
-  p.whatsapp
+  p.whatsapp,
+  coalesce((
+    select jsonb_agg(jsonb_build_object(
+      'id', o.id,
+      'name', o.name,
+      'starts_at', to_char(o.starts_at, 'HH24:MI'),
+      'ends_at', to_char(o.ends_at, 'HH24:MI'),
+      'price_ars', o.price_ars
+    ) order by o.sort_order)
+    from public.listing_offers o
+    where o.listing_id = l.id
+  ), '[]'::jsonb) as offers
 from public.listings l
 join public.profiles p on p.id = l.owner_id
 where l.status = 'active'
@@ -696,11 +763,11 @@ grant execute on function public.renew_seek(uuid) to authenticated;
 create table public.booking_slots (
   id uuid primary key default gen_random_uuid(),
   listing_id uuid not null references public.listings (id) on delete cascade,
+  offer_id uuid not null references public.listing_offers (id) on delete restrict,
   slot_date date not null,
-  shift text not null check (shift in ('dia', 'mediodia', 'noche')),
   status text not null default 'open' check (status in ('open', 'held', 'confirmed')),
   created_at timestamptz not null default now(),
-  unique (listing_id, slot_date, shift)
+  unique (listing_id, slot_date, offer_id)
 );
 
 create index booking_slots_listing_idx on public.booking_slots (listing_id, slot_date);
@@ -748,11 +815,11 @@ begin
   if not row_listing.booking_enabled or row_listing.type not in ('quincho', 'salon') then
     raise exception 'El turnero no está activo en este aviso';
   end if;
-  if row_listing.price_unit = 'dia' and new.shift <> 'dia' then
-    raise exception 'Este lugar se reserva por día completo';
-  end if;
-  if row_listing.price_unit = 'turno' and new.shift not in ('mediodia', 'noche') then
-    raise exception 'Elegí turno mediodía o noche';
+  if not exists (
+    select 1 from public.listing_offers o
+    where o.id = new.offer_id and o.listing_id = new.listing_id
+  ) then
+    raise exception 'Ese horario no está en el aviso';
   end if;
   if new.slot_date < current_date or new.slot_date > current_date + 180 then
     raise exception 'La fecha tiene que estar entre hoy y los próximos 6 meses';
@@ -965,6 +1032,8 @@ grant select, insert on public.reports to anon, authenticated;
 grant select on public.seeks to anon, authenticated;
 grant insert, update on public.seeks to authenticated;
 grant select on public.seeks_public to anon, authenticated;
+grant select, insert, update, delete on public.listing_offers to authenticated;
+grant select on public.listing_offers to anon;
 grant select, insert, delete on public.booking_slots to anon, authenticated;
 revoke insert, update, delete on public.booking_slots from anon;
 

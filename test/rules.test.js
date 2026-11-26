@@ -118,6 +118,7 @@ function listingInput() {
     price_ars: 300000,
     price_unit: "mes",
     district: "Villa Tulumaya",
+    address: "San Martín 100",
     requirements: "Garantía o depósito.",
     pets_allowed: true,
     guarantee_required: true,

@@ -1,6 +1,6 @@
 import { applyFilters } from "./filter.js";
-import { addDays, isoDay, normalizeWhatsapp, plusDaysISO } from "./format.js";
-import { AMENITY_IDS, DISTRICT_NAMES, isVenue, pointInLavalle, shiftsFor } from "./geo.js";
+import { addDays, clock, hoursLabel, isoDay, normalizeWhatsapp, plusDaysISO } from "./format.js";
+import { AMENITY_IDS, DISTRICT_NAMES, isVenue, pointInLavalle } from "./geo.js";
 
 export const IDS = {
   marina: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
@@ -22,6 +22,9 @@ export const IDS = {
   deptoJocoli: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb7",
   quincho: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb8",
   salon: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb9",
+  offerMediodia: "cccccccc-cccc-4ccc-8ccc-0000000000a1",
+  offerNoche: "cccccccc-cccc-4ccc-8ccc-0000000000a2",
+  offerDia: "cccccccc-cccc-4ccc-8ccc-0000000000b1",
 };
 
 const MAX_SEEKS = 5;
@@ -48,6 +51,8 @@ function baseListing(partial) {
     booking_enabled: false,
     hidden_reason: null,
     requirements: "",
+    address: "",
+    offers: [],
     ...partial,
   };
 }
@@ -130,6 +135,7 @@ export function createDemoStore() {
       price_ars: 520000,
       price_unit: "mes",
       district: "Villa Tulumaya",
+      address: "San Martín 450, a 4 cuadras de la plaza",
       requirements: "Recibo de sueldo o garantía propietaria en Mendoza.",
       lat: -32.7242,
       lng: -68.5984,
@@ -148,6 +154,7 @@ export function createDemoStore() {
       price_ars: 310000,
       price_unit: "mes",
       district: "El Plumero",
+      address: "Los Sauces 120, a una cuadra del asfalto",
       requirements: "Mes de depósito y garantía. Sin mascotas.",
       guarantee_required: true,
       lat: -32.686,
@@ -166,6 +173,7 @@ export function createDemoStore() {
       price_ars: 380000,
       price_unit: "mes",
       district: "Villa Tulumaya",
+      address: "San Martín 210, local con vidriera",
       requirements: "Contrato de 12 meses. Con depósito de 2 meses no hace falta garantía propietaria.",
       guarantee_required: false,
       lat: -32.7198,
@@ -184,6 +192,7 @@ export function createDemoStore() {
       price_ars: 150000,
       price_unit: "mes",
       district: "Costa de Araujo",
+      address: "Calle de tierra, lote 10 frente a la acequia",
       requirements: "Se alquila por año. La seña se conversa después de verlo.",
       pets_allowed: true,
       guarantee_required: false,
@@ -203,6 +212,7 @@ export function createDemoStore() {
       price_ars: 420000,
       price_unit: "mes",
       district: "Las Violetas",
+      address: "Las Heras 80, casa con parra al frente",
       requirements: "Garantía o seguro de caución. Disponibilidad inmediata.",
       pets_allowed: true,
       lat: -32.819,
@@ -221,6 +231,7 @@ export function createDemoStore() {
       price_ars: 260000,
       price_unit: "mes",
       district: "Ingeniero Gustavo André",
+      address: "Calle principal, casa recién pintada a 10 minutos del centro",
       requirements: "Sin garantía propietaria. Se pide depósito. Preferencia familia.",
       pets_allowed: true,
       guarantee_required: false,
@@ -240,6 +251,7 @@ export function createDemoStore() {
       price_ars: 90000,
       price_unit: "mes",
       district: "Jocolí",
+      address: "Sobre la ruta 40, sin número visible",
       requirements: "Seña hoy por transferencia para bloquearlo.",
       lat: -32.66,
       lng: -68.615,
@@ -259,7 +271,12 @@ export function createDemoStore() {
       price_ars: 180000,
       price_unit: "turno",
       district: "Villa Tulumaya",
+      address: "Belgrano 75, fondo Los Álamos",
       requirements: "La reserva se confirma por WhatsApp. No se pide seña por transferencia antes de ver el lugar.",
+      offers: [
+        { id: IDS.offerMediodia, name: "Mediodía", starts_at: "11:00", ends_at: "16:00", price_ars: 180000 },
+        { id: IDS.offerNoche, name: "Noche", starts_at: "20:00", ends_at: "00:30", price_ars: 220000 },
+      ],
       capacity: 45,
       amenities: ["pileta", "parrilla", "banos", "estacionamiento"],
       pets_allowed: false,
@@ -282,7 +299,11 @@ export function createDemoStore() {
       price_ars: 320000,
       price_unit: "dia",
       district: "El Vergel",
+      address: "Frente a la escuela, salón con portón verde",
       requirements: "Consultá el día por WhatsApp y pasá a verlo antes de dejar una seña.",
+      offers: [
+        { id: IDS.offerDia, name: "Día completo", starts_at: "11:00", ends_at: "02:00", price_ars: 320000 },
+      ],
       capacity: 90,
       amenities: ["cocina", "banos", "estacionamiento", "parrilla"],
       pets_allowed: false,
@@ -303,23 +324,23 @@ export function createDemoStore() {
     const date = addDays(day);
     const weekend = date.getDay() === 0 || date.getDay() === 6;
     if (!weekend && day % 2 === 1) continue;
-    for (const shift of ["mediodia", "noche"]) {
+    for (const offerId of [IDS.offerMediodia, IDS.offerNoche]) {
       const id = `cccccccc-cccc-4ccc-8ccc-${String(slotNumber).padStart(12, "0")}`;
       slotNumber += 1;
       const slot = {
         id,
         listing_id: IDS.quincho,
         slot_date: isoDay(date),
-        shift,
+        offer_id: offerId,
         status: "open",
       };
       slots.push(slot);
-      slotByKey.set(`${day}|${shift}`, slot);
+      slotByKey.set(`${day}|${offerId}`, slot);
     }
   }
 
-  const confirmed = slotByKey.get("4|noche");
-  const pending = slotByKey.get("6|mediodia");
+  const confirmed = slotByKey.get(`4|${IDS.offerNoche}`);
+  const pending = slotByKey.get(`6|${IDS.offerMediodia}`);
   if (confirmed) confirmed.status = "confirmed";
   if (pending) pending.status = "held";
 
@@ -402,6 +423,8 @@ export function hydrateListing(store, listing) {
     ...listing,
     amenities: listing.amenities || [],
     photo_urls: listing.photo_urls || [],
+    offers: listing.offers || [],
+    address: listing.address || "",
     owner_name: owner?.full_name || "",
     whatsapp: owner?.whatsapp || "",
     example: true,
@@ -484,22 +507,50 @@ export function updateProfile(store, id, fields) {
   return person;
 }
 
+function normalizeOffers(rawOffers, fullDay) {
+  const source = Array.isArray(rawOffers) ? rawOffers : [];
+  if (!source.length) throw new Error("Definí al menos un horario con su precio");
+  if (fullDay && source.length !== 1) throw new Error("El día completo es un solo horario");
+  return source.map((offer, index) => {
+    const name = fullDay ? "Día completo" : String(offer.name || "").trim();
+    if (name.length < 2 || name.length > 40) throw new Error("Poné un nombre corto a cada horario");
+    const starts = clock(offer.starts_at);
+    const ends = clock(offer.ends_at);
+    if (!starts || !ends || starts === ends) throw new Error("Revisá la hora de inicio y de fin");
+    const price = Number(offer.price_ars);
+    if (!Number.isInteger(price) || price < 1000) throw new Error("Cada horario tiene que tener un precio");
+    return {
+      id: offer.id || crypto.randomUUID(),
+      name,
+      starts_at: starts,
+      ends_at: ends,
+      price_ars: price,
+      sort_order: index,
+    };
+  });
+}
+
 function normalizeListingInput(input, existing) {
   const type = input.type || existing?.type;
   const venue = isVenue(type);
   const amenities = (input.amenities || existing?.amenities || []).filter((id) => AMENITY_IDS.includes(id));
+  const fullDay = venue && (input.price_unit === "dia" || (!input.price_unit && existing?.price_unit === "dia"));
+  const offers = venue ? normalizeOffers(input.offers || existing?.offers, fullDay) : [];
+  const address = String(input.address ?? existing?.address ?? "").trim();
   const listing = {
     type,
     title: String(input.title ?? existing?.title ?? "").trim(),
     description: String(input.description ?? existing?.description ?? "").trim(),
-    price_ars: Number(input.price_ars ?? existing?.price_ars),
-    price_unit: venue ? input.price_unit || existing?.price_unit : "mes",
+    price_ars: venue ? Math.min(...offers.map((offer) => offer.price_ars)) : Number(input.price_ars ?? existing?.price_ars),
+    price_unit: venue ? (fullDay ? "dia" : "turno") : "mes",
     district: input.district || existing?.district,
+    address,
     requirements: String(input.requirements ?? existing?.requirements ?? "").trim(),
     pets_allowed: venue ? false : Boolean(input.pets_allowed),
     guarantee_required: venue ? false : Boolean(input.guarantee_required),
     capacity: venue ? Number(input.capacity ?? existing?.capacity) : null,
     amenities: venue ? amenities : [],
+    offers,
     lat: Number(input.lat ?? existing?.lat),
     lng: Number(input.lng ?? existing?.lng),
     photo_urls: input.photo_urls || existing?.photo_urls || [],
@@ -512,6 +563,7 @@ function normalizeListingInput(input, existing) {
     throw new Error("Contá un poco más en la descripción (mínimo 20 caracteres)");
   }
   if (!Number.isInteger(listing.price_ars) || listing.price_ars < 1000) throw new Error("El precio tiene que ser mayor a cero");
+  if (address.length < 4 || address.length > 160) throw new Error("Escribí la dirección: calle y número, o una referencia para llegar");
   assertDistrict(listing.district);
   if (listing.requirements.length > 500) throw new Error("Los requisitos son demasiado largos");
   if (listing.photo_urls.length > 6) throw new Error("Podés subir hasta 6 fotos");
@@ -519,7 +571,6 @@ function normalizeListingInput(input, existing) {
     throw new Error("La ubicación tiene que estar dentro del departamento de Lavalle");
   }
   if (venue) {
-    if (!["dia", "turno"].includes(listing.price_unit)) throw new Error("Indicá si el precio es por día o por turno");
     if (!Number.isInteger(listing.capacity) || listing.capacity < 1 || listing.capacity > 2000) {
       throw new Error("Indicá la capacidad del lugar");
     }
@@ -558,10 +609,10 @@ export function updateListing(store, ownerId, listingId, input) {
     throw new Error("Este aviso está en revisión. Solo un administrador puede restaurarlo.");
   }
   const next = normalizeListingInput({ ...listing, ...input, photo_urls: input.photo_urls || listing.photo_urls }, listing);
-  if (listing.booking_enabled && store.slots.some((slot) => slot.listing_id === listing.id)) {
-    if (next.price_unit !== listing.price_unit) {
-      throw new Error("No cambies día/turno mientras tengas turnos cargados");
-    }
+  const usedOffers = new Set(store.slots.filter((slot) => slot.listing_id === listing.id).map((slot) => slot.offer_id));
+  const kept = new Set((next.offers || []).map((offer) => offer.id));
+  for (const offerId of usedOffers) {
+    if (!kept.has(offerId)) throw new Error("No saques un horario que ya tiene reservas en el calendario");
   }
   Object.assign(listing, next, { updated_at: new Date().toISOString() });
   return hydrateListing(store, listing);
@@ -695,25 +746,34 @@ function venueOwned(store, ownerId, listingId) {
 }
 
 export function listSlots(store, listingId) {
+  const listing = store.listings.find((item) => item.id === listingId);
+  const offers = new Map((listing?.offers || []).map((offer) => [offer.id, offer]));
   return store.slots
     .filter((slot) => slot.listing_id === listingId)
-    .slice()
-    .sort((a, b) => a.slot_date.localeCompare(b.slot_date) || a.shift.localeCompare(b.shift));
+    .map((slot) => {
+      const offer = offers.get(slot.offer_id);
+      return {
+        ...slot,
+        offer_name: offer?.name || "",
+        starts_at: offer?.starts_at || "",
+        ends_at: offer?.ends_at || "",
+        price_ars: offer?.price_ars ?? null,
+      };
+    })
+    .sort((a, b) => a.slot_date.localeCompare(b.slot_date) || String(a.starts_at).localeCompare(String(b.starts_at)));
 }
 
-export function toggleSlot(store, ownerId, listingId, slotDate, shift, open) {
+export function toggleSlot(store, ownerId, listingId, slotDate, offerId, open) {
   const listing = venueOwned(store, ownerId, listingId);
-  const allowed = shiftsFor(listing.price_unit);
-  if (!allowed.includes(shift)) {
-    throw new Error(listing.price_unit === "dia" ? "Este lugar se reserva por día completo" : "Elegí turno mediodía o noche");
-  }
+  const offer = (listing.offers || []).find((item) => item.id === offerId);
+  if (!offer) throw new Error("Ese horario no está en el aviso");
   const today = isoDay(new Date());
   const max = isoDay(addDays(180));
   if (slotDate < today || slotDate > max) throw new Error("La fecha tiene que estar entre hoy y los próximos 6 meses");
-  const existing = store.slots.find((slot) => slot.listing_id === listingId && slot.slot_date === slotDate && slot.shift === shift);
+  const existing = store.slots.find((slot) => slot.listing_id === listingId && slot.slot_date === slotDate && slot.offer_id === offerId);
   if (open) {
     if (existing) return existing;
-    const slot = { id: crypto.randomUUID(), listing_id: listingId, slot_date: slotDate, shift, status: "open" };
+    const slot = { id: crypto.randomUUID(), listing_id: listingId, slot_date: slotDate, offer_id: offerId, status: "open" };
     store.slots.push(slot);
     return slot;
   }
@@ -796,13 +856,25 @@ export function myBookingRequests(store, ownerId) {
     .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
+function offerLabel(listing, slot) {
+  const offer = (listing?.offers || []).find((item) => item.id === slot?.offer_id);
+  if (!offer) return "";
+  return `${offer.name} · ${hoursLabel(offer.starts_at, offer.ends_at)}`;
+}
+
+export function getSeek(store, id) {
+  const seek = store.seeks.find((item) => item.id === id && item.status !== "deleted");
+  if (!seek) return null;
+  return hydrateSeek(store, seek);
+}
+
 function decorateRequest(store, request) {
   const slot = store.slots.find((item) => item.id === request.slot_id);
   const listing = store.listings.find((item) => item.id === request.listing_id);
   return {
     ...request,
     slot_date: slot?.slot_date || "",
-    shift: slot?.shift || "",
+    shift: offerLabel(listing, slot),
     listing_title: listing?.title || "",
   };
 }

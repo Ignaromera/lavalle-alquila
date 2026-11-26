@@ -29,11 +29,11 @@ begin
   failed := false;
   begin
     insert into public.listings (
-      owner_id, type, title, description, price_ars, district, requirements, lat, lng
+      owner_id, type, title, description, price_ars, district, address, requirements, lat, lng
     ) values (
       uid, 'casa', 'Casa de prueba en el centro',
       'Descripción de prueba con más de veinte caracteres.',
-      400000, 'Villa Tulumaya', 'Garantía.', -32.8895, -68.8458
+      400000, 'Villa Tulumaya', 'San Martín 1', 'Garantía.', -32.8895, -68.8458
     );
   exception when others then
     failed := true;
@@ -46,21 +46,21 @@ begin
   end if;
 
   insert into public.listings (
-    id, owner_id, type, title, description, price_ars, district, requirements, lat, lng, photo_urls
+    id, owner_id, type, title, description, price_ars, district, address, requirements, lat, lng, photo_urls
   ) values (
     house, uid, 'casa', 'Casa de prueba en el centro',
     'Descripción de prueba con más de veinte caracteres.',
-    400000, 'Villa Tulumaya', 'Garantía.', -32.7215, -68.5958, '{}'
+    400000, 'Villa Tulumaya', 'San Martín 450', 'Garantía.', -32.7215, -68.5958, '{}'
   );
 
   failed := false;
   begin
     insert into public.listings (
-      owner_id, type, title, description, price_ars, district, requirements, lat, lng
+      owner_id, type, title, description, price_ars, district, address, requirements, lat, lng
     ) values (
       uid, 'local', 'Local de prueba sobre calle',
       'Descripción de prueba con más de veinte caracteres.',
-      300000, 'Villa Tulumaya', 'Contrato.', -32.7200, -68.5900
+      300000, 'Villa Tulumaya', 'San Martín 210', 'Contrato.', -32.7200, -68.5900
     );
   exception when others then
     failed := true;
@@ -99,19 +99,24 @@ begin
   where id = other;
 
   insert into public.listings (
-    id, owner_id, type, title, description, price_ars, price_unit, district, requirements,
+    id, owner_id, type, title, description, price_ars, price_unit, district, address, requirements,
     capacity, amenities, lat, lng, booking_enabled
   ) values (
     quincho, other, 'quincho', 'Quincho de prueba con pileta',
     'Descripción de prueba con más de veinte caracteres.',
-    150000, 'turno', 'Villa Tulumaya', 'Sin seña previa.',
+    150000, 'turno', 'Villa Tulumaya', 'Belgrano 75', 'Sin seña previa.',
     40, array['pileta', 'parrilla'], -32.7185, -68.5890, false
   );
 
+  insert into public.listing_offers (id, listing_id, name, starts_at, ends_at, price_ars, sort_order)
+  values
+    ('66666666-6666-4666-8666-666666666661', quincho, 'Mediodía', '11:00', '16:00', 150000, 0),
+    ('66666666-6666-4666-8666-666666666662', quincho, 'Noche', '20:00', '00:30', 180000, 1);
+
   failed := false;
   begin
-    insert into public.booking_slots (listing_id, slot_date, shift)
-    values (quincho, current_date + 3, 'noche');
+    insert into public.booking_slots (listing_id, offer_id, slot_date)
+    values (quincho, '66666666-6666-4666-8666-666666666662', current_date + 3);
   exception when others then
     failed := true;
     if position('turnero' in sqlerrm) = 0 then
@@ -124,13 +129,13 @@ begin
 
   update public.listings set booking_enabled = true where id = quincho;
 
-  insert into public.booking_slots (id, listing_id, slot_date, shift)
-  values (slot, quincho, current_date + 4, 'noche');
+  insert into public.booking_slots (id, listing_id, offer_id, slot_date)
+  values (slot, quincho, '66666666-6666-4666-8666-666666666662', current_date + 4);
 
   failed := false;
   begin
-    insert into public.booking_slots (listing_id, slot_date, shift)
-    values (quincho, current_date + 4, 'noche');
+    insert into public.booking_slots (listing_id, offer_id, slot_date)
+    values (quincho, '66666666-6666-4666-8666-666666666662', current_date + 4);
   exception when unique_violation then
     failed := true;
   end;
@@ -165,8 +170,8 @@ begin
   -- la dejó confirmed. La volvemos a pending a propósito y confirmamos de nuevo.
   perform public.set_booking_status(req, 'confirmed');
 
-  insert into public.booking_slots (listing_id, slot_date, shift)
-  values (quincho, current_date + 5, 'mediodia');
+  insert into public.booking_slots (listing_id, offer_id, slot_date)
+  values (quincho, '66666666-6666-4666-8666-666666666661', current_date + 5);
 
   raise notice 'schema ok';
 end

@@ -327,6 +327,30 @@ p { margin: 0 0 10px; }
   z-index: 0;
 }
 .map-short { height: 240px; min-height: 240px; }
+.gmap {
+  width: 100%;
+  height: 240px;
+  border: 0;
+  border-radius: 18px;
+  background: #e7e1d6;
+  margin: 8px 0 12px;
+}
+.map-actions { margin-top: 8px; }
+.map-actions .btn { width: 100%; }
+.address { font-weight: 650; }
+.offer-menu { margin: 8px 0 12px; padding-left: 18px; }
+.offer-menu li { margin: 4px 0; }
+.offer-edit {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.slot-editor { border: 1px solid var(--line); border-radius: 16px; padding: 12px; margin: 0 0 12px; }
+.slot-editor legend { font-family: var(--display); font-weight: 650; padding: 0 6px; }
 .map-peek {
   position: absolute;
   left: 10px;
