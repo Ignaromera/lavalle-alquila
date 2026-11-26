@@ -44,35 +44,34 @@ insert into public.admin_emails (email) values ('tu@email.com');
 
 Usá el mismo email con el que vas a entrar a la página. Sin esa fila, la moderación no te deja pasar aunque pongas el email en el código.
 
-## 4. Login por email
+## 4. Login con Google y con email
 
-1. **Authentication** → **Providers** → **Email**: dejalo prendido.
-2. Dejá **Confirm email** activado.
-3. **Authentication** → **URL configuration**:
+La página pide primero **Entrar con Google** y, debajo, el email. El correo de Supabase puede traer un enlace o un código. La plantilla puede quedar la de fábrica (solo el enlace, sin `{{ .Token }}`). Si el código está activado, en este proyecto tiene 8 dígitos: el campo acepta de 6 a 10. El texto de la pantalla lo dice.
+
+1. **Authentication** → **Providers** → **Email**: prendido. **Confirm email** activado.
+2. **Authentication** → **Providers** → **Google**: prendido, con el Client ID y el Client Secret de Google Cloud.
+3. En Google Cloud, la pantalla de consentimiento tiene que apuntar a:
+   - `https://ignaromera.github.io/lavalle-alquila/privacidad.html`
+   - `https://ignaromera.github.io/lavalle-alquila/terminos.html`
+4. En el cliente OAuth de Google, el redirect autorizado de Supabase es el que muestra el panel (algo como `https://TU_PROYECTO.supabase.co/auth/v1/callback`).
+5. **Authentication** → **URL configuration**:
    - **Site URL**: `https://ignaromera.github.io/lavalle-alquila/`
    - **Redirect URLs**, agregá estas (con y sin barra final):
      - `https://ignaromera.github.io/lavalle-alquila/`
      - `https://ignaromera.github.io/lavalle-alquila`
      - `http://127.0.0.1:5173`
      - `http://localhost:5173`
-4. **Authentication** → **Email templates** → **Magic Link**. Reemplazá el cuerpo por algo así, para que llegue el código y también el enlace:
 
-```html
-<h2>Tu entrada a Lavalle Alquila</h2>
-<p>Código: {{ .Token }}</p>
-<p>O abrí este enlace:</p>
-<p><a href="{{ .ConfirmationURL }}">Entrar</a></p>
-<p>Si no fuiste vos, ignorá este mensaje.</p>
-```
+Google y el enlace del correo vuelven a la página con `?code=`. La app usa PKCE (`detectSessionInUrl`), así que no choca con las rutas `#/aviso/...`. Después del ingreso, si falta el nombre o el WhatsApp, se completan en **Yo** antes de publicar. El nombre de Google se propone solo; el WhatsApp siempre lo escribe la persona.
 
-El enlace usa el flujo PKCE (`?code=` en la dirección), así no choca con las rutas `#/aviso/...` de la página.
+Si más adelante querés que el correo traiga también el código, en **Email templates** → **Magic Link** podés sumar `{{ .Token }}`. No es obligatorio.
 
 El plan gratis manda pocos correos por hora. No lo pruebes diez veces seguidas.
 
 ## 5. Pegar la URL y la clave anónima
 
 1. **Project Settings** → **API**.
-2. Copiá **Project URL** y la clave **anon public** (empieza con `eyJ`). No copies la `service_role`: esa abre toda la base y no puede ir en el navegador.
+2. Copiá **Project URL** y la clave pública (`anon` o la clave **publishable**, la que se puede poner en el navegador). No copies la `service_role` ni la clave secreta: esas abren toda la base y no van en el sitio.
 3. Editá [`src/config.js`](src/config.js):
 
 ```js

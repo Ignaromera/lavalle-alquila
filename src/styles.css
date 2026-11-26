@@ -447,6 +447,21 @@ p { margin: 0 0 10px; }
 .demo-logins { margin: 10px 0; }
 .demo-logins .btn { width: 100%; justify-content: flex-start; text-align: left; }
 .footer-links { margin-top: 18px; }
+.btn-google {
+  width: 100%;
+  background: white;
+  color: var(--ink);
+  border: 1px solid var(--ink);
+}
+.or { text-align: center; color: var(--muted); margin: 12px 0; font-weight: 650; }
+.legal {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 18px 0 8px;
+  font-size: 0.9rem;
+}
 .owner { color: var(--muted); }
 .stats { margin: 8px 0 16px; }
 .week-chart {
