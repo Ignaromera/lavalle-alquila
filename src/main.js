@@ -15,6 +15,7 @@ import { renderHome, renderVenues } from "./pages/home.js";
 import { renderMap } from "./pages/map.js";
 import { renderPublish } from "./pages/publish.js";
 import { renderSeek, renderSeekNew, renderSeeks } from "./pages/seeks.js";
+import { givenName } from "./format.js";
 import { resetPageMeta } from "./meta.js";
 import { parseRoute } from "./router.js";
 
@@ -50,7 +51,7 @@ const app = document.querySelector("#app");
 
 function shell(route, session) {
   const base = import.meta.env.BASE_URL;
-  const name = session?.profile?.full_name?.split(" ")[0];
+  const name = givenName(session?.profile?.full_name);
   const tab = (id, href, label, glyph) => {
     const on = route.name === id;
     return `<a class="tab${on ? " is-on" : ""}" href="${href}" ${on ? 'aria-current="page"' : ""}>${icon(glyph)}<span>${label}</span></a>`;

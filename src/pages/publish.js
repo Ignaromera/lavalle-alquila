@@ -16,7 +16,7 @@ import { mountMap } from "../map.js";
 import { photoUrl } from "../api.js";
 import { toast } from "../toast.js";
 
-export async function renderPublish(view, route, session) {
+export async function renderPublish(view, route, session, hooks = {}) {
   const editingId = route.parts[1] || "";
   let existing = null;
   if (editingId) {
@@ -26,7 +26,8 @@ export async function renderPublish(view, route, session) {
       return;
     }
   }
-  const mine = session ? await myListings() : [];
+  const loadMine = hooks.loadListings || myListings;
+  const mine = session ? await loadMine() : [];
   const used = mine.filter((item) => (item.status === "active" || item.status === "hidden") && new Date(item.expires_at) > new Date() && item.id !== editingId).length;
   const max = session?.profile.max_listings ?? 1;
   const plan = session?.profile.plan === "pro" ? "pro" : "gratis";
@@ -39,7 +40,7 @@ export async function renderPublish(view, route, session) {
     </section>
     <p class="plan-note">Plan <strong>${plan}</strong> · hasta ${max} aviso${max === 1 ? "" : "s"} activo${max === 1 ? "" : "s"}. Más adelante vas a poder ampliarlo.</p>
     ${session && used >= max && !editingId ? `<p class="error">Ya tenés ${used} aviso${used === 1 ? "" : "s"} activo${used === 1 ? "" : "s"}. Marcá uno como alquilado o eliminalo para publicar otro. La base también lo frena.</p>` : ""}
-    ${authBoxHtml()}
+    ${session ? "" : authBoxHtml()}
     ${!session ? demoLoginsHtml(DEMO_LOGIN) : ""}
     <form class="stack" data-testid="publish-form" novalidate>
       ${profileReady ? `<p class="note">Publicás como <strong>${esc(session.profile.full_name)}</strong> · ${esc(session.profile.whatsapp)}</p>` : `
@@ -116,7 +117,7 @@ export async function renderPublish(view, route, session) {
       <button class="btn btn-primary btn-block" type="submit">${editingId ? "Guardar cambios" : "Publicar aviso"}</button>
     </form>`;
 
-  const form = view.querySelector("form");
+  const form = view.querySelector("[data-testid=publish-form]");
   const typeSelect = form.querySelector("[data-type]");
   const upsell = form.querySelector("[data-upsell]");
   let currentKind = kind;
@@ -136,7 +137,7 @@ export async function renderPublish(view, route, session) {
     const box = form.querySelector("[data-offer-rows]");
     const help = form.querySelector("[data-offer-help]");
     const add = form.querySelector("[data-add-offer]");
-    if (!box) return;
+    if (!box || !help || !add) return;
     help.textContent = offerMode === "dia"
       ? "Un solo bloque, de la hora que abrís hasta la que cerrás, con un precio para todo el día."
       : "Ejemplo: Mediodía 11:00–18:00 y Noche 20:00–04:00. Cada turno tiene su precio.";
@@ -218,10 +219,15 @@ export async function renderPublish(view, route, session) {
     if (![...typeSelect.options].some((option) => option.selected)) typeSelect.selectedIndex = 0;
   };
   const paintKind = () => {
-    form.querySelector("[data-housing]").hidden = currentKind === "venue";
-    form.querySelector("[data-venue]").hidden = currentKind === "housing";
-    form.querySelector("[data-price]").hidden = currentKind === "venue";
-    form.querySelector("[data-month]").hidden = currentKind === "venue";
+    for (const [selector, hidden] of [
+      ["[data-housing]", currentKind === "venue"],
+      ["[data-venue]", currentKind === "housing"],
+      ["[data-price]", currentKind === "venue"],
+      ["[data-month]", currentKind === "venue"],
+    ]) {
+      const node = form.querySelector(selector);
+      if (node) node.hidden = hidden;
+    }
     view.querySelectorAll("[data-kind]").forEach((button) => {
       button.classList.toggle("is-on", button.dataset.kind === currentKind);
     });
@@ -274,7 +280,8 @@ export async function renderPublish(view, route, session) {
   });
 
   const pinText = form.querySelector("[data-pin]");
-  mountMap(form.querySelector("[data-map]"), {
+  const drawMap = hooks.mountMap || mountMap;
+  drawMap(form.querySelector("[data-map]"), {
     polygon: true,
     pin: picked,
     pinType: currentKind === "venue" ? "quincho" : "casa",

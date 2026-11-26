@@ -19,7 +19,7 @@ import { render } from "../bus.js";
 import { upsellHtml } from "../cards.js";
 import { authBoxHtml, bindAuth, demoLoginsHtml, legalLinksHtml } from "./auth-ui.js";
 import { bindSeekActions, seekOwnerCard } from "./seeks.js";
-import { confirmWaText, esc, formatDay, formatWhen, priceLabel, shiftLabel, typeLabel, waLink } from "../format.js";
+import { confirmWaText, esc, formatDay, formatWhen, givenName, priceLabel, shiftLabel, typeLabel, waLink } from "../format.js";
 import { isVenue } from "../geo.js";
 import { bindTurnero, calFor, turneroHtml } from "../turnero-ui.js";
 import { recentDays } from "../stats.js";
@@ -60,7 +60,7 @@ export async function renderAccount(view, route, session) {
   const turnero = session.profile.booking_enabled || session.profile.plan === "pro";
   view.innerHTML = `
     <section class="page-head">
-      <h1 tabindex="-1">Hola, ${esc(session.profile.full_name || "vecino")}</h1>
+      <h1 tabindex="-1">Hola, ${esc(givenName(session.profile.full_name) || "vecino")}</h1>
       <p class="lede">${esc(session.profile.email || "")}</p>
     </section>
     <p class="plan-note">Plan <strong>${plan}</strong> · hasta ${esc(session.profile.max_listings)} aviso(s) activo(s). ${turnero ? "El turnero está habilitado en tus quinchos y salones nuevos." : "El turnero no está incluido en este plan."}</p>

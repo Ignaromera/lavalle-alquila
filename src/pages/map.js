@@ -36,6 +36,7 @@ export async function renderMap(view, route) {
     listings,
     polygon: true,
     onMarker(item) {
+      if (!peek) return;
       peek.hidden = false;
       peek.innerHTML = `<div>
         <p class="eyebrow">${esc(typeLabel(item.type))} · ${esc(item.district)}</p>
