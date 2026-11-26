@@ -56,11 +56,21 @@ function getClient() {
   return client;
 }
 
+export function authEventShouldRender(event) {
+  return event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED";
+}
+
 export function watchAuth(onChange) {
   if (isDemo()) return;
   getClient().auth.onAuthStateChange((event) => {
-    if (event === "SIGNED_IN" || event === "SIGNED_OUT") onChange(event);
+    if (authEventShouldRender(event)) onChange(event);
   });
+}
+
+function isPermissionError(error) {
+  const msg = String(error?.message || error || "");
+  const code = String(error?.code || "");
+  return code === "42501" || /row-level security|permission denied|42501/i.test(msg);
 }
 
 function asError(error) {
@@ -429,14 +439,23 @@ export function visitorId() {
 export async function reportListing(id, { reason, details }) {
   const visitor = visitorId();
   if (isDemo()) return demo.addReport(mem(), id, visitor, reason, details);
-  const { error } = await getClient().from("reports").insert({
+  // return=minimal: PostgREST no devuelve la fila. Solo un admin puede leer reports;
+  // un insert con RETURNING fallaría para el resto.
+  const query = getClient().from("reports").insert({
     listing_id: id,
     visitor_id: visitor,
     reason,
     details: details || "",
   });
+  query.headers.set("Prefer", "return=minimal");
+  const { error } = await query;
   if (error) {
-    if (/duplicate|unique/i.test(error.message)) throw new Error("Ya denunciaste este aviso. Gracias.");
+    if (/duplicate|unique/i.test(error.message) || error.code === "23505") {
+      throw new Error("Ya denunciaste este aviso. Gracias.");
+    }
+    if (isPermissionError(error)) {
+      throw new Error("No se pudo denunciar este aviso. Si es tuyo, no hace falta denunciarlo.");
+    }
     throw asError(error);
   }
 }

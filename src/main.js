@@ -7,6 +7,7 @@ import "@fontsource/fraunces/latin-700.css";
 import "./styles.css";
 import { getSession, isDemo, watchAuth } from "./api.js";
 import { onRender } from "./bus.js";
+import { createRenderQueue } from "./render-queue.js";
 import { icon } from "./icons.js";
 import { renderAccount, renderOwnerTurnero } from "./pages/account.js";
 import { renderAdmin } from "./pages/admin.js";
@@ -65,7 +66,7 @@ function shell(route, session) {
       <a class="who" href="#/cuenta">${name ? esc(name) : "Entrar"}</a>
     </header>
     ${isDemo() ? `<p class="demo-banner">Modo ejemplo: estos avisos son ficticios, para ver cómo va a quedar.</p>` : ""}
-    <main id="view" class="view"></main>
+    <main id="view" class="view"><p class="fine">Cargando…</p></main>
     <nav class="tabbar" aria-label="Secciones">
       ${tab("home", "#/", "Inicio", "home")}
       ${tab("map", "#/mapa", "Mapa", "map")}
@@ -85,7 +86,7 @@ function esc(value) {
   }[ch]));
 }
 
-async function renderApp({ scroll = true } = {}) {
+async function renderOnce({ scroll = true } = {}) {
   const route = parseRoute();
   resetPageMeta();
   document.title = `${TITLES[route.name] || "Lavalle Alquila"} · Lavalle Alquila`;
@@ -102,12 +103,21 @@ async function renderApp({ scroll = true } = {}) {
   try {
     await page(view, route, session);
   } catch (error) {
+    if (!view?.isConnected) return;
     view.innerHTML = `<p class="error">${esc(error.message || "No se pudo abrir esta pantalla")}</p>`;
   }
   if (scroll) window.scrollTo(0, 0);
 }
 
-onRender(renderApp);
-window.addEventListener("hashchange", () => renderApp({ scroll: true }));
-watchAuth(() => renderApp({ scroll: false }));
-renderApp();
+const renderApp = createRenderQueue(renderOnce);
+
+onRender((options) => {
+  void renderApp(options);
+});
+window.addEventListener("hashchange", () => {
+  void renderApp({ scroll: true });
+});
+watchAuth(() => {
+  void renderApp({ scroll: false });
+});
+void renderApp();

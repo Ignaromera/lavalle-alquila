@@ -81,11 +81,11 @@ export async function renderDetail(view, route, session) {
           <li>Lavalle Alquila no cobra señas ni intermedia el pago.</li>
         </ul>
       </aside>
-      <button type="button" class="btn btn-ghost btn-block" data-report>Denunciar aviso</button>
+      ${mine ? "" : `<button type="button" class="btn btn-ghost btn-block" data-report>Denunciar aviso</button>`}
       <div class="sticky-cta">
         <a class="btn btn-wa" data-stat="whatsapp" target="_blank" rel="noopener noreferrer" href="${esc(waLink(listing.whatsapp, listingWaText(listing)))}">Consultar por WhatsApp</a>
       </div>
-      <div class="sheet-back" data-close-report hidden></div>
+      ${mine ? "" : `<div class="sheet-back" data-close-report hidden></div>
       <form class="sheet" data-report-form hidden>
         <div class="sheet-grab"></div>
         <h2>Denunciar aviso</h2>
@@ -95,7 +95,7 @@ export async function renderDetail(view, route, session) {
         </label>
         <label class="field">Detalle (opcional)<textarea name="details" maxlength="500" placeholder="Qué viste"></textarea></label>
         <button class="btn btn-danger" type="submit">Enviar denuncia</button>
-      </form>
+      </form>`}
       ${shareFallbackHtml({ title: listing.title, text: shareText, url: shareUrl })}
     </article>`;
 
@@ -140,27 +140,29 @@ export async function renderDetail(view, route, session) {
     });
   }
 
-  const sheet = view.querySelector("[data-report-form]");
-  const backSheet = view.querySelector("[data-close-report]");
-  view.querySelector("[data-report]").addEventListener("click", () => {
-    sheet.hidden = false;
-    backSheet.hidden = false;
-  });
-  backSheet.addEventListener("click", () => {
-    sheet.hidden = true;
-    backSheet.hidden = true;
-  });
-  sheet.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const data = new FormData(sheet);
-    try {
-      await reportListing(listing.id, { reason: String(data.get("reason")), details: String(data.get("details") || "") });
-      toast("Recibimos tu denuncia. Gracias.");
+  if (!mine) {
+    const sheet = view.querySelector("[data-report-form]");
+    const backSheet = view.querySelector("[data-close-report]");
+    view.querySelector("[data-report]").addEventListener("click", () => {
+      sheet.hidden = false;
+      backSheet.hidden = false;
+    });
+    backSheet.addEventListener("click", () => {
       sheet.hidden = true;
       backSheet.hidden = true;
-      render({ scroll: false });
-    } catch (error) {
-      toast(error.message);
-    }
-  });
+    });
+    sheet.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const data = new FormData(sheet);
+      try {
+        await reportListing(listing.id, { reason: String(data.get("reason")), details: String(data.get("details") || "") });
+        toast("Recibimos tu denuncia. Gracias.");
+        sheet.hidden = true;
+        backSheet.hidden = true;
+        render({ scroll: false });
+      } catch (error) {
+        toast(error.message);
+      }
+    });
+  }
 }
