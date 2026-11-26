@@ -63,21 +63,17 @@ export async function renderPublish(view, route, session) {
       <label class="field">Descripción
         <textarea name="description" maxlength="2000" required placeholder="Contá cómo es, qué tiene y cuándo se puede ver.">${esc(existing?.description || "")}</textarea>
       </label>
-      <div class="split">
-        <label class="field">Precio en pesos
-          <input name="price" inputmode="numeric" required placeholder="450000" value="${existing ? esc(existing.price_ars) : ""}" />
-        </label>
-        <label class="field" data-unit ${kind === "housing" ? "hidden" : ""}>Se cobra
-          <select name="price_unit">
-            <option value="turno"${existing?.price_unit === "turno" ? " selected" : ""}>Por turno</option>
-            <option value="dia"${existing?.price_unit === "dia" ? " selected" : ""}>Por día</option>
-          </select>
-        </label>
-      </div>
+      <label class="field" data-price ${kind === "venue" ? "hidden" : ""}>Precio por mes, en pesos
+        <input name="price" inputmode="numeric" placeholder="450000" value="${existing && !isVenue(existing.type) ? esc(existing.price_ars) : ""}" />
+      </label>
       <p class="fine" data-month ${kind === "venue" ? "hidden" : ""}>El precio de casas, departamentos, locales y terrenos es por mes.</p>
       <label class="field">Distrito
         <select name="district">${districtOptions(existing?.district || "", "Elegí un distrito")}</select>
       </label>
+      <label class="field">Dirección
+        <input name="address" maxlength="160" required placeholder="Calle y número, o una referencia" value="${esc(existing?.address || "")}" data-testid="address-input" />
+      </label>
+      <p class="fine">Obligatoria. Por ejemplo: San Martín 450, o «casa colorada a 4 cuadras de la plaza».</p>
       <label class="field">Requisitos
         <textarea name="requirements" maxlength="500" placeholder="Garantía, depósito, contrato…">${esc(existing?.requirements || "")}</textarea>
       </label>
@@ -86,6 +82,17 @@ export async function renderPublish(view, route, session) {
         <label class="checkline"><input type="checkbox" name="guarantee" ${existing ? (existing.guarantee_required ? "checked" : "") : "checked"} /> Pide garantía</label>
       </div>
       <div data-venue ${kind === "housing" ? "hidden" : ""}>
+        <fieldset class="slot-editor" data-testid="slot-editor">
+          <legend>Horarios y precios</legend>
+          <p class="fine">Armá los horarios que ofrecés. Cada uno lleva nombre, hora de inicio, hora de fin y precio. Si el fin es más temprano que el inicio, se entiende que termina al día siguiente (por ejemplo 20:00–04:00).</p>
+          <div class="segment">
+            <button type="button" class="seg" data-offer-mode="turnos">Por turnos</button>
+            <button type="button" class="seg" data-offer-mode="dia">Día completo</button>
+          </div>
+          <p class="fine" data-offer-help></p>
+          <div data-offer-rows></div>
+          <button type="button" class="btn btn-ghost" data-add-offer>Agregar turno</button>
+        </fieldset>
         <label class="field">Capacidad
           <input name="capacity" inputmode="numeric" placeholder="40" value="${existing?.capacity ? esc(existing.capacity) : ""}" />
         </label>
@@ -113,9 +120,92 @@ export async function renderPublish(view, route, session) {
   const typeSelect = form.querySelector("[data-type]");
   const upsell = form.querySelector("[data-upsell]");
   let currentKind = kind;
+  let offerMode = existing?.price_unit === "dia" ? "dia" : "turnos";
+  let offers = (existing?.offers || []).map((offer) => ({ ...offer }));
+  if (!offers.length) {
+    offers = [
+      { name: "Mediodía", starts_at: "11:00", ends_at: "18:00", price_ars: "" },
+      { name: "Noche", starts_at: "20:00", ends_at: "04:00", price_ars: "" },
+    ];
+  }
   let picked = existing ? { lat: Number(existing.lat), lng: Number(existing.lng) } : null;
   let kept = [...(existing?.photo_urls || [])];
   const files = [];
+
+  const paintOffers = () => {
+    const box = form.querySelector("[data-offer-rows]");
+    const help = form.querySelector("[data-offer-help]");
+    const add = form.querySelector("[data-add-offer]");
+    if (!box) return;
+    help.textContent = offerMode === "dia"
+      ? "Un solo bloque, de la hora que abrís hasta la que cerrás, con un precio para todo el día."
+      : "Ejemplo: Mediodía 11:00–18:00 y Noche 20:00–04:00. Cada turno tiene su precio.";
+    add.hidden = offerMode === "dia";
+    form.querySelectorAll("[data-offer-mode]").forEach((button) => {
+      button.classList.toggle("is-on", button.dataset.offerMode === offerMode);
+    });
+    box.innerHTML = offers.map((offer, index) => `<div class="offer-edit">
+      <label class="field">Nombre
+        <input data-offer-name="${index}" value="${esc(offer.name)}" ${offerMode === "dia" ? "readonly" : ""} maxlength="40" />
+      </label>
+      <div class="split">
+        <label class="field">Desde<input type="time" data-offer-start="${index}" value="${esc(offer.starts_at)}" /></label>
+        <label class="field">Hasta<input type="time" data-offer-end="${index}" value="${esc(offer.ends_at)}" /></label>
+      </div>
+      <label class="field">Precio de este horario
+        <input inputmode="numeric" data-offer-price="${index}" value="${esc(offer.price_ars)}" placeholder="180000" />
+      </label>
+      ${offerMode === "turnos" && offers.length > 1 ? `<button type="button" class="btn btn-small btn-ghost" data-drop-offer="${index}">Quitar turno</button>` : ""}
+    </div>`).join("");
+    box.querySelectorAll("[data-drop-offer]").forEach((button) => {
+      button.addEventListener("click", () => {
+        syncOffers();
+        offers.splice(Number(button.dataset.dropOffer), 1);
+        paintOffers();
+      });
+    });
+  };
+  const syncOffers = () => {
+    offers = offers.map((offer, index) => ({
+      ...offer,
+      name: form.querySelector(`[data-offer-name="${index}"]`)?.value || offer.name,
+      starts_at: form.querySelector(`[data-offer-start="${index}"]`)?.value || offer.starts_at,
+      ends_at: form.querySelector(`[data-offer-end="${index}"]`)?.value || offer.ends_at,
+      price_ars: form.querySelector(`[data-offer-price="${index}"]`)?.value ?? offer.price_ars,
+    }));
+  };
+  const readOffers = () => {
+    syncOffers();
+    return offers.map((offer) => ({
+      id: offer.id,
+      name: offer.name,
+      starts_at: offer.starts_at,
+      ends_at: offer.ends_at,
+      price_ars: parseMoney(offer.price_ars),
+    }));
+  };
+  form.querySelector("[data-add-offer]")?.addEventListener("click", () => {
+    syncOffers();
+    offers.push({ name: "", starts_at: "11:00", ends_at: "18:00", price_ars: "" });
+    paintOffers();
+  });
+  form.querySelectorAll("[data-offer-mode]").forEach((button) => {
+    button.addEventListener("click", () => {
+      syncOffers();
+      offerMode = button.dataset.offerMode;
+      if (offerMode === "dia") {
+        const current = offers[0] || {};
+        offers = [{ id: current.id, name: "Día completo", starts_at: current.starts_at || "11:00", ends_at: current.ends_at || "02:00", price_ars: current.price_ars || "" }];
+      } else if (offers.length < 2 || offers[0]?.name === "Día completo") {
+        offers = [
+          { name: "Mediodía", starts_at: "11:00", ends_at: "18:00", price_ars: "" },
+          { name: "Noche", starts_at: "20:00", ends_at: "04:00", price_ars: "" },
+        ];
+      }
+      paintOffers();
+    });
+  });
+  paintOffers();
 
   const willTurnero = !!(session?.profile.booking_enabled || session?.profile.plan === "pro");
   const paintUpsell = () => {
@@ -130,7 +220,7 @@ export async function renderPublish(view, route, session) {
   const paintKind = () => {
     form.querySelector("[data-housing]").hidden = currentKind === "venue";
     form.querySelector("[data-venue]").hidden = currentKind === "housing";
-    form.querySelector("[data-unit]").hidden = currentKind === "housing";
+    form.querySelector("[data-price]").hidden = currentKind === "venue";
     form.querySelector("[data-month]").hidden = currentKind === "venue";
     view.querySelectorAll("[data-kind]").forEach((button) => {
       button.classList.toggle("is-on", button.dataset.kind === currentKind);
@@ -235,18 +325,21 @@ export async function renderPublish(view, route, session) {
       }
       const type = String(data.get("type") || "");
       const venue = isVenue(type);
+      const offers = venue ? readOffers() : [];
       const fields = {
         type,
         title: String(data.get("title") || ""),
         description: String(data.get("description") || ""),
-        price_ars: parseMoney(data.get("price")),
-        price_unit: venue ? String(data.get("price_unit") || "turno") : "mes",
+        price_ars: venue ? Math.min(...offers.map((offer) => offer.price_ars)) : parseMoney(data.get("price")),
+        price_unit: venue ? (offerMode === "dia" ? "dia" : "turno") : "mes",
         district: String(data.get("district") || ""),
+        address: String(data.get("address") || ""),
         requirements: String(data.get("requirements") || ""),
         pets_allowed: !venue && data.get("pets") === "on",
         guarantee_required: !venue && data.get("guarantee") === "on",
         capacity: venue ? Number(String(data.get("capacity") || "").replace(/\D/g, "")) : null,
         amenities: venue ? data.getAll("amenities").map(String) : [],
+        offers,
         lat: picked?.lat,
         lng: picked?.lng,
       };

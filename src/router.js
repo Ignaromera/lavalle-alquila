@@ -13,6 +13,7 @@ export function parseRoute() {
   else if (head === "publicar") name = "publish";
   else if (head === "quinchos") name = "venues";
   else if (head === "busco" && parts[1] === "nuevo") name = "seek-new";
+  else if (head === "busco" && parts[1]) name = "seek";
   else if (head === "busco") name = "seeks";
   else if (head === "cuenta") name = "account";
   else if (head === "admin") name = "admin";

@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { config, isConfigured } from "./config.js";
 import * as demo from "./demo-store.js";
 import { applyFilters } from "./filter.js";
-import { normalizeWhatsapp } from "./format.js";
+import { clock, normalizeWhatsapp } from "./format.js";
 import { compressImage, readDataUrl } from "./photos.js";
 
 const DEMO_KEY = "lavalle-demo-user";
@@ -76,11 +76,24 @@ function asError(error) {
   return new Error(msg);
 }
 
+function normalizeOffer(offer) {
+  return {
+    id: offer.id,
+    name: offer.name,
+    starts_at: clock(offer.starts_at),
+    ends_at: clock(offer.ends_at),
+    price_ars: Number(offer.price_ars),
+  };
+}
+
 function normalize(row) {
+  const rawOffers = Array.isArray(row.offers) ? row.offers : [];
   return {
     ...row,
     amenities: row.amenities || [],
     photo_urls: row.photo_urls || [],
+    offers: rawOffers.map(normalizeOffer),
+    address: row.address || "",
     pets_allowed: !!row.pets_allowed,
     guarantee_required: row.guarantee_required !== false,
     featured: !!row.featured,
@@ -89,6 +102,23 @@ function normalize(row) {
     owner_name: row.owner_name || "",
     whatsapp: row.whatsapp || "",
   };
+}
+
+async function attachOffers(rows) {
+  if (!rows.length || rows.every((row) => row.offers?.length || row.type === "casa" || row.type === "departamento" || row.type === "local" || row.type === "terreno")) {
+    return rows;
+  }
+  const ids = rows.filter((row) => row.type === "quincho" || row.type === "salon").map((row) => row.id);
+  if (!ids.length) return rows;
+  const { data, error } = await getClient().from("listing_offers").select("*").in("listing_id", ids).order("sort_order");
+  if (error) throw asError(error);
+  const grouped = new Map();
+  for (const offer of data || []) {
+    const list = grouped.get(offer.listing_id) || [];
+    list.push(normalizeOffer(offer));
+    grouped.set(offer.listing_id, list);
+  }
+  return rows.map((row) => ({ ...row, offers: grouped.get(row.id) || row.offers || [] }));
 }
 
 function mapProfile(row, user, isAdmin) {
@@ -256,11 +286,12 @@ export async function getListing(id) {
   if (own.error) throw asError(own.error);
   if (!own.data || own.data.status === "deleted") return null;
   const session = await getSession();
-  return normalize({
+  const normalized = normalize({
     ...own.data,
     owner_name: session?.profile.full_name || "",
     whatsapp: session?.profile.whatsapp || "",
   });
+  return (await attachOffers([normalized]))[0];
 }
 
 export async function myListings() {
@@ -274,11 +305,38 @@ export async function myListings() {
     .neq("status", "deleted")
     .order("created_at", { ascending: false });
   if (error) throw asError(error);
-  return (data || []).map((row) => normalize({
+  const rows = (data || []).map((row) => normalize({
     ...row,
     owner_name: session.profile.full_name,
     whatsapp: session.profile.whatsapp,
   }));
+  return attachOffers(rows);
+}
+
+async function saveOffers(listingId, offers) {
+  const current = await getClient().from("listing_offers").select("id").eq("listing_id", listingId);
+  if (current.error) throw asError(current.error);
+  const keep = new Set((offers || []).filter((offer) => offer.id).map((offer) => offer.id));
+  const remove = (current.data || []).filter((row) => !keep.has(row.id)).map((row) => row.id);
+  if (remove.length) {
+    const deleted = await getClient().from("listing_offers").delete().in("id", remove);
+    if (deleted.error) throw new Error("No saques un horario que ya tiene reservas en el calendario");
+  }
+  for (const [index, offer] of (offers || []).entries()) {
+    const row = {
+      listing_id: listingId,
+      name: offer.name,
+      starts_at: offer.starts_at,
+      ends_at: offer.ends_at,
+      price_ars: offer.price_ars,
+      sort_order: index,
+    };
+    const exists = offer.id && (current.data || []).some((item) => item.id === offer.id);
+    const result = exists
+      ? await getClient().from("listing_offers").update(row).eq("id", offer.id)
+      : await getClient().from("listing_offers").insert({ ...row, id: offer.id || crypto.randomUUID() });
+    if (result.error) throw asError(result.error);
+  }
 }
 
 export async function createListing(fields, files) {
@@ -290,16 +348,18 @@ export async function createListing(fields, files) {
   }
   const id = crypto.randomUUID();
   const photo_urls = await storedPhotos(session.user.id, id, files);
+  const { offers, ...rest } = fields;
   const { error } = await getClient().from("listings").insert({
     id,
     owner_id: session.user.id,
-    ...fields,
+    ...rest,
     photo_urls,
     status: "active",
     featured: false,
     booking_enabled: false,
   });
   if (error) throw asError(error);
+  if (offers?.length) await saveOffers(id, offers);
   return getListing(id);
 }
 
@@ -309,8 +369,10 @@ export async function updateListing(id, fields, files, keptPhotos) {
   const extra = await storedPhotos(session.user.id, id, files);
   const photo_urls = [...keptPhotos, ...extra].slice(0, 6);
   if (isDemo()) return demo.updateListing(mem(), session.user.id, id, { ...fields, photo_urls });
-  const { error } = await getClient().from("listings").update({ ...fields, photo_urls }).eq("id", id);
+  const { offers, ...rest } = fields;
+  const { error } = await getClient().from("listings").update({ ...rest, photo_urls }).eq("id", id);
   if (error) throw asError(error);
+  if (offers) await saveOffers(id, offers);
   return getListing(id);
 }
 
@@ -359,6 +421,13 @@ export async function reportListing(id, { reason, details }) {
     if (/duplicate|unique/i.test(error.message)) throw new Error("Ya denunciaste este aviso. Gracias.");
     throw asError(error);
   }
+}
+
+export async function getSeek(id) {
+  if (isDemo()) return demo.getSeek(mem(), id);
+  const { data, error } = await getClient().from("seeks_public").select("*").eq("id", id).maybeSingle();
+  if (error) throw asError(error);
+  return data ? { ...data, example: false } : null;
 }
 
 export async function listSeeks() {
@@ -415,20 +484,30 @@ export async function deleteSeek(id) {
 
 export async function listSlots(listingId) {
   if (isDemo()) return demo.listSlots(mem(), listingId);
-  const { data, error } = await getClient().from("booking_slots").select("*").eq("listing_id", listingId).order("slot_date");
+  const { data, error } = await getClient()
+    .from("booking_slots")
+    .select("id, listing_id, slot_date, offer_id, status, listing_offers(name, starts_at, ends_at, price_ars)")
+    .eq("listing_id", listingId)
+    .order("slot_date");
   if (error) throw asError(error);
-  return data || [];
+  return (data || []).map((row) => ({
+    ...row,
+    offer_name: row.listing_offers?.name || "",
+    starts_at: clock(row.listing_offers?.starts_at),
+    ends_at: clock(row.listing_offers?.ends_at),
+    price_ars: row.listing_offers?.price_ars ?? null,
+  }));
 }
 
-export async function toggleSlot(listingId, slotDate, shift, open) {
+export async function toggleSlot(listingId, slotDate, offerId, open) {
   const session = await getSession();
   if (!session) throw new Error("Entrá con tu cuenta");
-  if (isDemo()) return demo.toggleSlot(mem(), session.user.id, listingId, slotDate, shift, open);
+  if (isDemo()) return demo.toggleSlot(mem(), session.user.id, listingId, slotDate, offerId, open);
   if (open) {
     const { error } = await getClient().from("booking_slots").insert({
       listing_id: listingId,
       slot_date: slotDate,
-      shift,
+      offer_id: offerId,
       status: "open",
     });
     if (error) throw asError(error);
@@ -439,7 +518,7 @@ export async function toggleSlot(listingId, slotDate, shift, open) {
     .delete()
     .eq("listing_id", listingId)
     .eq("slot_date", slotDate)
-    .eq("shift", shift)
+    .eq("offer_id", offerId)
     .eq("status", "open");
   if (error) throw asError(error);
 }
@@ -462,15 +541,19 @@ export async function myBookingRequests() {
   if (isDemo()) return demo.myBookingRequests(mem(), session.user.id);
   const { data, error } = await getClient()
     .from("booking_requests")
-    .select("id, slot_id, listing_id, requester_name, requester_whatsapp, guests, note, status, created_at, booking_slots(slot_date, shift), listings(title)")
+    .select("id, slot_id, listing_id, requester_name, requester_whatsapp, guests, note, status, created_at, booking_slots(slot_date, listing_offers(name, starts_at, ends_at)), listings(title)")
     .order("created_at", { ascending: false });
   if (error) throw asError(error);
-  return (data || []).map((row) => ({
-    ...row,
-    slot_date: row.booking_slots?.slot_date || "",
-    shift: row.booking_slots?.shift || "",
-    listing_title: row.listings?.title || "",
-  }));
+  return (data || []).map((row) => {
+    const offer = row.booking_slots?.listing_offers;
+    const hours = offer ? `${offer.name} · ${clock(offer.starts_at)}–${clock(offer.ends_at)}` : "";
+    return {
+      ...row,
+      slot_date: row.booking_slots?.slot_date || "",
+      shift: hours,
+      listing_title: row.listings?.title || "",
+    };
+  });
 }
 
 export async function setBookingStatus(requestId, status) {

@@ -2,9 +2,10 @@ import { getListing, isDemo, listSlots, photoUrl, reportListing, requestBooking 
 import { render } from "../bus.js";
 import { upsellHtml } from "../cards.js";
 import { isPublicListing } from "../filter.js";
-import { amenityLabel, esc, listingWaText, priceLabel, typeLabel, waLink } from "../format.js";
+import { amenityLabel, esc, listingWaText, mapsDirectionsUrl, mapsEmbedUrl, offerLine, priceLabel, typeLabel, waLink } from "../format.js";
 import { isVenue } from "../geo.js";
-import { mountMap } from "../map.js";
+import { setPageMeta } from "../meta.js";
+import { bindShare, listingUrl, shareFallbackHtml } from "../share.js";
 import { bindTurnero, calFor, turneroHtml } from "../turnero-ui.js";
 import { toast } from "../toast.js";
 
@@ -26,6 +27,13 @@ export async function renderDetail(view, route, session) {
   const venue = isVenue(listing.type);
   const slots = venue && listing.booking_enabled ? await listSlots(listing.id) : [];
   const photos = listing.photo_urls || [];
+  const shareUrl = listingUrl(listing.id);
+  const shareText = `${listing.title} · ${listing.district} · ${priceLabel(listing)}`;
+  setPageMeta({
+    title: `${listing.title} en ${listing.district}`,
+    description: `${listing.title}. ${listing.address || listing.district}. ${priceLabel(listing)}. ${listing.requirements || ""}`.slice(0, 180),
+    url: shareUrl,
+  });
   view.innerHTML = `
     <article class="detail" data-testid="detail">
       ${listing.status === "hidden" ? `<p class="error">Este aviso está oculto por las denuncias. En el sitio real no aparece en el listado hasta que moderación lo restaure.</p>` : ""}
@@ -43,6 +51,7 @@ export async function renderDetail(view, route, session) {
       <p class="eyebrow">${esc(listing.district)}</p>
       <h1 tabindex="-1">${esc(listing.title)}</h1>
       <p class="price price-lg">${esc(priceLabel(listing))}</p>
+      <button type="button" class="btn btn-ghost" data-share data-testid="share">Compartir</button>
       <p class="owner">Publica ${esc(listing.owner_name || "un vecino")}</p>
       <div class="chips">
         ${venue && listing.capacity ? `<span class="chip">Hasta ${esc(listing.capacity)} personas</span>` : ""}
@@ -50,13 +59,19 @@ export async function renderDetail(view, route, session) {
         ${venue ? "" : `<span class="chip">${listing.pets_allowed ? "Acepta mascotas" : "Sin mascotas"}</span>`}
         ${venue ? "" : `<span class="chip">${listing.guarantee_required ? "Pide garantía" : "Sin garantía"}</span>`}
       </div>
+      ${venue && (listing.offers || []).length ? `<ul class="offer-menu" data-testid="offers">${listing.offers.map((offer) => `<li>${esc(offerLine(offer))}</li>`).join("")}</ul>` : ""}
       ${venue && listing.booking_enabled ? turneroHtml({ listing, slots, mode: "visitor" }) : ""}
       ${venue && !listing.booking_enabled ? upsellHtml() : ""}
       <h2>Descripción</h2>
       <p class="prose">${esc(listing.description)}</p>
       ${listing.requirements ? `<h2>Requisitos</h2><p class="prose">${esc(listing.requirements)}</p>` : ""}
       <h2>Dónde queda</h2>
-      <div class="map-canvas map-short" data-map role="region" aria-label="Ubicación del aviso"></div>
+      <p class="address" data-testid="address">${esc(listing.address || "Sin dirección cargada")}</p>
+      <div class="map-actions">
+        <button type="button" class="btn btn-ghost" data-share data-testid="share">Compartir</button>
+        <a class="btn btn-primary" data-testid="directions" target="_blank" rel="noopener noreferrer" href="${esc(mapsDirectionsUrl(listing.lat, listing.lng))}">Cómo llegar en Google Maps</a>
+      </div>
+      <iframe class="gmap" data-testid="gmap" title="Mapa de ${esc(listing.title)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${esc(mapsEmbedUrl(listing.lat, listing.lng))}"></iframe>
       <aside class="safety">
         <h2>Antes de pagar, mirá</h2>
         <ul>
@@ -81,9 +96,10 @@ export async function renderDetail(view, route, session) {
         <label class="field">Detalle (opcional)<textarea name="details" maxlength="500" placeholder="Qué viste"></textarea></label>
         <button class="btn btn-danger" type="submit">Enviar denuncia</button>
       </form>
+      ${shareFallbackHtml({ title: listing.title, text: shareText, url: shareUrl })}
     </article>`;
 
-  mountMap(view.querySelector("[data-map]"), { listings: [listing], polygon: true });
+  bindShare(view, { title: listing.title, text: shareText, url: shareUrl });
 
   if (venue && listing.booking_enabled) {
     bindTurnero(view.querySelector("[data-testid=turnero]"), {

@@ -137,7 +137,13 @@ where id = 'UUID-DEL-AVISO';
 
 El aviso del quincho o salón se publica gratis, como el resto. El calendario es el extra. Si el flag está apagado, la ficha muestra: «Activá el turnero (próximamente, servicio pago)» y la consulta sigue por WhatsApp.
 
-Quien alquila marca los días y turnos libres (día completo, o mediodía y noche). Otra persona pide ese turno con nombre, WhatsApp, cantidad de gente y una nota. En tu cuenta ves el pedido: **Confirmar y abrir WhatsApp** manda el mensaje ya escrito y deja el turno tomado. **Rechazar** lo vuelve a liberar. No puede haber dos reservas confirmadas del mismo día y turno: lo impide un índice único.
+Cada aviso pide una dirección (calle y número, o una referencia). En la ficha hay un mapa de Google embebido, sin clave, y un botón para cómo llegar. Compartir usa el enlace directo del aviso (`#/aviso/...` o `#/busco/...`).
+
+En un quincho o salón, quien publica define los horarios con nombre, hora de inicio, hora de fin y precio (por ejemplo Mediodía 11:00–18:00 y Noche 20:00–04:00), o elige Día completo con su horario. El turnero muestra esos nombres, las horas y el precio.
+
+Si ya corriste `schema.sql` antes de este cambio, en el SQL Editor ejecutá [`supabase/migration-direccion-turnos.sql`](supabase/migration-direccion-turnos.sql) una sola vez. Una instalación nueva no lo necesita: `schema.sql` ya trae la dirección y los horarios.
+
+Quien alquila marca qué días ofrece cada horario. Otra persona pide ese turno con nombre, WhatsApp, cantidad de gente y una nota. En tu cuenta ves el pedido: **Confirmar y abrir WhatsApp** manda el mensaje ya escrito y deja el turno tomado. **Rechazar** lo vuelve a liberar. No puede haber dos reservas confirmadas del mismo día y turno: lo impide un índice único.
 
 ## Límites del plan gratis
 

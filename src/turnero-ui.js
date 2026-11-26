@@ -1,5 +1,4 @@
-import { shiftsFor } from "./geo.js";
-import { esc, formatDay, isoDay, shiftLabel } from "./format.js";
+import { esc, formatArs, formatDay, hoursLabel, isoDay } from "./format.js";
 
 const state = { id: "", cursor: new Date(), selected: "", asking: "" };
 
@@ -37,6 +36,10 @@ function statusText(status) {
   return "Sin ofrecer";
 }
 
+function slotSummary(offer) {
+  return `${offer.name} · ${hoursLabel(offer.starts_at, offer.ends_at)} · ${formatArs(offer.price_ars)}`;
+}
+
 export function turneroHtml({ listing, slots, mode }) {
   const cal = calFor(listing.id);
   const year = cal.cursor.getFullYear();
@@ -44,7 +47,7 @@ export function turneroHtml({ listing, slots, mode }) {
   const today = isoDay(new Date());
   const formatted = new Intl.DateTimeFormat("es-AR", { month: "long", year: "numeric" }).format(cal.cursor);
   const title = formatted.charAt(0).toUpperCase() + formatted.slice(1);
-  const allowed = shiftsFor(listing.price_unit);
+  const offers = listing.offers || [];
   const grid = cells(year, month).map((date) => {
     if (!date) return '<span class="cal-day is-empty"></span>';
     const iso = isoDay(date);
@@ -59,25 +62,25 @@ export function turneroHtml({ listing, slots, mode }) {
   let panel = "";
   if (cal.selected) {
     const past = cal.selected < today;
-    const rows = allowed.map((shift) => {
-      const slot = selectedSlots.find((item) => item.shift === shift);
-      const label = shiftLabel(shift);
+    const rows = offers.map((offer) => {
+      const slot = selectedSlots.find((item) => item.offer_id === offer.id);
+      const label = slotSummary(offer);
       if (mode === "owner") {
         if (!slot) {
-          return `<div class="shift-row"><span><strong>${esc(label)}</strong><small>Sin ofrecer</small></span>${past ? "" : `<button type="button" class="btn btn-small" data-toggle="1" data-shift="${shift}">Ofrecer</button>`}</div>`;
+          return `<div class="shift-row"><span><strong>${esc(offer.name)}</strong><small>${esc(hoursLabel(offer.starts_at, offer.ends_at))} · ${esc(formatArs(offer.price_ars))} · Sin ofrecer</small></span>${past ? "" : `<button type="button" class="btn btn-small" data-toggle="1" data-offer="${esc(offer.id)}">Ofrecer</button>`}</div>`;
         }
         const canClose = slot.status === "open" && !past;
-        return `<div class="shift-row"><span><strong>${esc(label)}</strong><small>${esc(statusText(slot.status))}</small></span>${canClose ? `<button type="button" class="btn btn-small btn-ghost" data-toggle="0" data-shift="${shift}">Cerrar</button>` : ""}</div>`;
+        return `<div class="shift-row"><span><strong>${esc(offer.name)}</strong><small>${esc(hoursLabel(offer.starts_at, offer.ends_at))} · ${esc(formatArs(offer.price_ars))} · ${esc(statusText(slot.status))}</small></span>${canClose ? `<button type="button" class="btn btn-small btn-ghost" data-toggle="0" data-offer="${esc(offer.id)}">Cerrar</button>` : ""}</div>`;
       }
       if (!slot) return "";
       const ask = cal.asking === slot.id;
       return `<div class="shift-row">
-        <span><strong>${esc(label)}</strong><small>${esc(statusText(slot.status))}</small></span>
+        <span><strong>${esc(offer.name)}</strong><small>${esc(hoursLabel(offer.starts_at, offer.ends_at))} · ${esc(formatArs(offer.price_ars))} · ${esc(statusText(slot.status))}</small></span>
         ${slot.status === "open" ? `<button type="button" class="btn btn-small" data-ask="${esc(slot.id)}">Pedir este turno</button>` : ""}
       </div>
       ${ask ? bookingForm(slot.id, listing.capacity) : ""}`;
     }).join("");
-    panel = `<div class="day-panel">
+    panel = `<div class="day-panel" data-testid="day-panel">
       <h3>${esc(formatDay(cal.selected))}</h3>
       ${rows || "<p class='muted'>Ese día no está ofrecido.</p>"}
     </div>`;
@@ -87,9 +90,12 @@ export function turneroHtml({ listing, slots, mode }) {
     <header class="turnero-head">
       <div>
         <h2>${mode === "owner" ? "Administrar turnero" : "Reservar un turno"}</h2>
-        <p>${listing.price_unit === "dia" ? "Se alquila por día completo." : "Hay turno mediodía y turno noche."} Capacidad: ${esc(listing.capacity)} personas.</p>
+        <p>Cada horario tiene su precio. Capacidad: ${esc(listing.capacity)} personas.</p>
       </div>
     </header>
+    <ul class="offer-menu">
+      ${offers.map((offer) => `<li>${esc(slotSummary(offer))}</li>`).join("")}
+    </ul>
     <div class="cal-head">
       <button type="button" class="btn btn-small btn-ghost" data-cal="prev" aria-label="Mes anterior">←</button>
       <strong>${esc(title)}</strong>
@@ -127,7 +133,7 @@ export function bindTurnero(root, handlers) {
     button.addEventListener("click", () => handlers.pick(button.dataset.day));
   });
   root.querySelectorAll("[data-toggle]").forEach((button) => {
-    button.addEventListener("click", () => handlers.toggle(button.dataset.shift, button.dataset.toggle === "1"));
+    button.addEventListener("click", () => handlers.toggle(button.dataset.offer, button.dataset.toggle === "1"));
   });
   root.querySelectorAll("[data-ask]").forEach((button) => {
     button.addEventListener("click", () => handlers.ask(button.dataset.ask));

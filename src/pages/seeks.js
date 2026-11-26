@@ -1,10 +1,12 @@
-import { createSeek, deleteSeek, ensureDemoProfile, isDemo, listSeeks, renewSeek } from "../api.js";
+import { createSeek, deleteSeek, ensureDemoProfile, getSeek, isDemo, listSeeks, renewSeek } from "../api.js";
 import { render } from "../bus.js";
 import { districtOptions } from "../cards.js";
 import { authBoxHtml, bindAuth, demoLoginsHtml } from "./auth-ui.js";
 import { DEMO_LOGIN } from "../api.js";
 import { esc, formatArs, formatWhen, parseMoney, seekWaText, typeLabel, waLink } from "../format.js";
 import { HOUSING_TYPES, VENUE_TYPES } from "../geo.js";
+import { setPageMeta } from "../meta.js";
+import { bindShare, seekUrl, shareFallbackHtml } from "../share.js";
 import { toast } from "../toast.js";
 
 export async function renderSeeks(view) {
@@ -18,12 +20,41 @@ export async function renderSeeks(view) {
     <div class="stack" data-testid="seeks">
       ${seeks.length ? seeks.map((seek) => `<article class="seek">
         <p class="eyebrow">${esc(typeLabel(seek.type))}${seek.district ? ` · ${esc(seek.district)}` : " · cualquier distrito"}</p>
-        <h2>Hasta ${esc(formatArs(seek.budget_ars))}</h2>
+        <h2><a href="#/busco/${esc(seek.id)}">Hasta ${esc(formatArs(seek.budget_ars))}</a></h2>
         <p>${esc(seek.note)}</p>
         <p class="fine">${esc(seek.owner_name || "Vecino")}${seek.example ? " · ejemplo" : ""}</p>
-        <a class="btn btn-wa" target="_blank" rel="noopener noreferrer" href="${esc(waLink(seek.whatsapp, seekWaText(seek)))}">Escribir por WhatsApp</a>
+        <div class="row-actions">
+          <a class="btn btn-wa" target="_blank" rel="noopener noreferrer" href="${esc(waLink(seek.whatsapp, seekWaText(seek)))}">Escribir por WhatsApp</a>
+          <a class="btn btn-ghost" href="#/busco/${esc(seek.id)}">Compartir</a>
+        </div>
       </article>`).join("") : `<p class="empty">Todavía no hay búsquedas. Sé la primera.</p>`}
     </div>`;
+}
+
+export async function renderSeek(view, route) {
+  const seek = await getSeek(route.parts[1]);
+  const visible = seek && seek.status !== "deleted" && new Date(seek.expires_at) > new Date();
+  if (!visible) {
+    view.innerHTML = `<section class="page-head"><h1>Búsqueda no disponible</h1><p>Puede haber vencido.</p><p><a class="btn btn-primary" href="#/busco">Ver búsquedas</a></p></section>`;
+    return;
+  }
+  const url = seekUrl(seek.id);
+  const title = `Busco ${typeLabel(seek.type).toLowerCase()} en ${seek.district || "Lavalle"}`;
+  const text = `${title}. Hasta ${formatArs(seek.budget_ars)}. ${seek.note}`;
+  setPageMeta({ title, description: text.slice(0, 180), url });
+  view.innerHTML = `
+    <article class="detail" data-testid="seek-detail">
+      <a class="back" href="#/busco">← Búsquedas</a>
+      <p class="eyebrow">${esc(typeLabel(seek.type))}${seek.district ? ` · ${esc(seek.district)}` : " · cualquier distrito"}</p>
+      <h1>${esc(title)}</h1>
+      <p class="price">${esc(formatArs(seek.budget_ars))}</p>
+      <p>${esc(seek.note)}</p>
+      <p class="fine">${esc(seek.owner_name || "Vecino")}${seek.example ? " · ejemplo" : ""}</p>
+      <button type="button" class="btn btn-ghost" data-share data-testid="share">Compartir</button>
+      <p><a class="btn btn-wa" target="_blank" rel="noopener noreferrer" href="${esc(waLink(seek.whatsapp, seekWaText(seek)))}">Escribir por WhatsApp</a></p>
+      ${shareFallbackHtml({ title, text, url })}
+    </article>`;
+  bindShare(view, { title, text, url });
 }
 
 export async function renderSeekNew(view, route, session) {

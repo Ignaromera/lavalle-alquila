@@ -14,7 +14,8 @@ import { renderDetail } from "./pages/detail.js";
 import { renderHome, renderVenues } from "./pages/home.js";
 import { renderMap } from "./pages/map.js";
 import { renderPublish } from "./pages/publish.js";
-import { renderSeekNew, renderSeeks } from "./pages/seeks.js";
+import { renderSeek, renderSeekNew, renderSeeks } from "./pages/seeks.js";
+import { resetPageMeta } from "./meta.js";
 import { parseRoute } from "./router.js";
 
 const TITLES = {
@@ -24,6 +25,7 @@ const TITLES = {
   detail: "Aviso",
   publish: "Publicar aviso",
   seeks: "Busco alquiler",
+  seek: "Búsqueda",
   "seek-new": "Publicar búsqueda",
   account: "Mi cuenta",
   admin: "Moderación",
@@ -37,6 +39,7 @@ const routes = {
   detail: renderDetail,
   publish: renderPublish,
   seeks: renderSeeks,
+  seek: renderSeek,
   "seek-new": renderSeekNew,
   account: renderAccount,
   admin: renderAdmin,
@@ -83,6 +86,7 @@ function esc(value) {
 
 async function renderApp({ scroll = true } = {}) {
   const route = parseRoute();
+  resetPageMeta();
   document.title = `${TITLES[route.name] || "Lavalle Alquila"} · Lavalle Alquila`;
   let session = null;
   try {

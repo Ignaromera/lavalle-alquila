@@ -20,7 +20,29 @@ export function formatArs(amount) {
 
 const UNIT = { mes: "mes", dia: "día", turno: "turno" };
 
+export function clock(value) {
+  const match = String(value ?? "").match(/(\d{1,2}):(\d{2})/);
+  if (!match) return "";
+  return `${match[1].padStart(2, "0")}:${match[2]}`;
+}
+
+export function hoursLabel(start, end) {
+  const from = clock(start);
+  const to = clock(end);
+  if (!from || !to) return "";
+  return `${from}–${to}`;
+}
+
+export function offerLine(offer) {
+  return `${offer.name} · ${hoursLabel(offer.starts_at, offer.ends_at)} · ${formatArs(offer.price_ars)}`;
+}
+
 export function priceLabel(listing) {
+  const venue = listing.type === "quincho" || listing.type === "salon";
+  const offers = listing.offers || [];
+  if (venue && offers.length > 1) return `desde ${formatArs(listing.price_ars)}`;
+  if (venue && offers.length === 1) return `${formatArs(offers[0].price_ars)} · ${offers[0].name}`;
+  if (venue) return formatArs(listing.price_ars);
   const unit = UNIT[listing.price_unit] || "mes";
   return `${formatArs(listing.price_ars)} / ${unit}`;
 }
@@ -46,6 +68,14 @@ export function isWhatsapp(digits) {
 export function waLink(phone, text) {
   const n = String(phone || "").replace(/\D/g, "");
   return `https://wa.me/${n}?text=${encodeURIComponent(text)}`;
+}
+
+export function mapsEmbedUrl(lat, lng) {
+  return `https://maps.google.com/maps?q=${Number(lat)},${Number(lng)}&z=16&output=embed`;
+}
+
+export function mapsDirectionsUrl(lat, lng) {
+  return `https://www.google.com/maps/dir/?api=1&destination=${Number(lat)},${Number(lng)}`;
 }
 
 export function listingWaText(listing) {
