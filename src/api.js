@@ -126,7 +126,7 @@ function mapProfile(row, user, isAdmin) {
   return {
     id: user.id,
     email: user.email || "",
-    full_name: row?.full_name || "",
+    full_name: row?.full_name || user.user_metadata?.full_name || user.user_metadata?.name || "",
     whatsapp: row?.whatsapp || "",
     plan: row?.plan || "free",
     max_listings: row?.max_listings ?? 1,
@@ -170,6 +170,19 @@ export async function getSession() {
   return { user: { id: user.id, email: user.email }, profile: mapProfile(profile, user, admin.data) };
 }
 
+export async function signInWithGoogle() {
+  if (isDemo()) {
+    throw new Error("En el modo ejemplo no se abre Google. Conectá Supabase para usarlo.");
+  }
+  const { error } = await getClient().auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: `${location.origin}${location.pathname}`,
+    },
+  });
+  if (error) throw asError(error);
+}
+
 export async function requestEmailCode(email) {
   if (isDemo()) {
     throw new Error("En el modo ejemplo no se envían correos. Entrá con una cuenta de ejemplo o configurá Supabase.");
@@ -186,12 +199,16 @@ export async function requestEmailCode(email) {
 
 export async function verifyEmailCode(email, token) {
   if (isDemo()) throw new Error("En el modo ejemplo no hay códigos.");
+  const code = token.trim();
+  if (!/^\d{6,10}$/.test(code)) {
+    throw new Error("El código tiene entre 6 y 10 números. Si el correo trajo un enlace, abrilo en este teléfono.");
+  }
   const { error } = await getClient().auth.verifyOtp({
     email: email.trim(),
-    token: token.trim(),
+    token: code,
     type: "email",
   });
-  if (error) throw new Error("El código no sirve o está vencido. Pedí otro.");
+  if (error) throw new Error("El código no sirve o está vencido. Pedí otro, o abrí el enlace del correo.");
 }
 
 export async function signOut() {

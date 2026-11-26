@@ -17,7 +17,7 @@ import {
 import { config } from "../config.js";
 import { render } from "../bus.js";
 import { upsellHtml } from "../cards.js";
-import { authBoxHtml, bindAuth, demoLoginsHtml } from "./auth-ui.js";
+import { authBoxHtml, bindAuth, demoLoginsHtml, legalLinksHtml } from "./auth-ui.js";
 import { bindSeekActions, seekOwnerCard } from "./seeks.js";
 import { confirmWaText, esc, formatDay, formatWhen, priceLabel, shiftLabel, typeLabel, waLink } from "../format.js";
 import { isVenue } from "../geo.js";
@@ -38,11 +38,12 @@ export async function renderAccount(view, route, session) {
     view.innerHTML = `
       <section class="page-head">
         <h1 tabindex="-1">Tu cuenta</h1>
-        <p class="lede">Entrá con tu email para publicar, renovar o ver los pedidos del turnero.</p>
+        <p class="lede">Entrá con Google o con tu email para publicar, renovar o ver los pedidos del turnero. Después te pedimos nombre y WhatsApp.</p>
       </section>
       ${authBoxHtml()}
       ${demoLoginsHtml(DEMO_LOGIN)}
-      ${isDemo() ? `<p><a href="#/admin">Ver moderación de ejemplo</a></p>` : ""}`;
+      ${isDemo() ? `<p><a href="#/admin">Ver moderación de ejemplo</a></p>` : ""}
+      ${legalLinksHtml()}`;
     bindAuth(view, () => render());
     view.querySelectorAll("[data-demo]").forEach((button) => {
       button.addEventListener("click", async () => {
@@ -64,6 +65,7 @@ export async function renderAccount(view, route, session) {
     </section>
     <p class="plan-note">Plan <strong>${plan}</strong> · hasta ${esc(session.profile.max_listings)} aviso(s) activo(s). ${turnero ? "El turnero está habilitado en tus quinchos y salones nuevos." : "El turnero no está incluido en este plan."}</p>
     ${statsPanelHtml(listings, seeks, stats, recentDays(7))}
+    ${!session.profile.whatsapp ? `<p class="note">Para publicar, completá tu nombre y tu WhatsApp. Si entraste con Google, el nombre puede venir solo.</p>` : ""}
     <form class="stack profile-form" data-profile>
       <label class="field">Nombre<input name="full_name" required value="${esc(session.profile.full_name)}" /></label>
       <label class="field">WhatsApp<input name="whatsapp" required inputmode="tel" value="${esc(session.profile.whatsapp)}" /></label>
@@ -83,7 +85,8 @@ export async function renderAccount(view, route, session) {
     <div class="stack footer-links">
       ${canModerate(session) ? `<a class="btn btn-ghost" href="#/admin">${isDemo() ? "Moderación de ejemplo" : "Moderación"}</a>` : ""}
       <button type="button" class="btn btn-ghost" data-logout>Salir</button>
-    </div>`;
+    </div>
+    ${legalLinksHtml()}`;
 
   view.querySelector("[data-profile]").addEventListener("submit", async (event) => {
     event.preventDefault();
