@@ -1,3 +1,8 @@
+export function givenName(fullName) {
+  const name = String(fullName || "").trim().split(/\s+/)[0];
+  return name || "";
+}
+
 export function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
     "&": "&amp;",
