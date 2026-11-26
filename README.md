@@ -34,4 +34,10 @@ Los archivos del logo están en `public/brand/` (marca, versión horizontal, en 
 - Paleta: Naranja `#FC6F20`, Crema adobe `#FEE8D0`, Papel `#FFF8F0`, Carbón `#323232`, Arena `#EBD4B8`, Mostaza `#D9A51E` (destacado), Ladrillo `#9E2B25` (alertas), Naranja profundo `#C34B0B` (texto), Verde `#1F7A44` (solo WhatsApp).
 - Tipografías: Bricolage Grotesque (títulos) e Instrument Sans (texto), ambas con licencia SIL Open Font License, servidas desde el propio sitio.
 - La silueta del departamento de Lavalle del logo se armó con datos de © OpenStreetMap contributors, licencia ODbL (https://www.openstreetmap.org/copyright).
-- Las fotos de los avisos de ejemplo (`public/demo/fotos/`) son de Pexels (licencia libre de Pexels) y solo se usan en el modo ejemplo. Los avisos reales llevan las fotos de cada dueño.
+- Las fotos de los avisos de ejemplo (`public/demo/fotos/`, en WebP de hasta 1200 px) son de [Pexels](https://www.pexels.com/license/): se pueden usar gratis, también comercialmente, sin atribución obligatoria. Solo se ven en el modo ejemplo; los avisos reales llevan las fotos de cada dueño. Conviene reemplazarlas por fotos reales de Lavalle cuando las haya. Origen:
+  - `vinedo-riego.webp`: https://www.pexels.com/photo/14515698/
+  - `camino-rural.webp`: https://www.pexels.com/photo/13300938/ (camino rural en Argentina)
+  - `casa-antigua.webp`: https://www.pexels.com/photo/23856752/
+  - `asado-mendoza.webp`: https://www.pexels.com/photo/9292084/ (asado en Mendoza)
+  - `depto-moderno.webp`: https://www.pexels.com/photo/7587828/
+  - `casa-patio`, `casa-araujo`, `depto`, `local`, `terreno`, `quincho-1..3`: las mismas fotos de Pexels de las muestras de diseño (`public/muestras/img/`).
