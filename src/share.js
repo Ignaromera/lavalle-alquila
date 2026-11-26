@@ -43,10 +43,10 @@ export function shareFallbackHtml({ title, text, url }) {
 }
 
 export function bindShare(root, payload) {
-  const button = root.querySelector("[data-share]");
+  const buttons = root.querySelectorAll("[data-share]");
   const sheet = root.querySelector("[data-share-sheet]");
   const back = root.querySelector("[data-close-share]");
-  if (!button || !sheet) return;
+  if (!buttons.length || !sheet) return;
   const open = () => {
     sheet.hidden = false;
     back.hidden = false;
@@ -55,9 +55,11 @@ export function bindShare(root, payload) {
     sheet.hidden = true;
     back.hidden = true;
   };
-  button.addEventListener("click", async () => {
-    const result = await shareItem(payload);
-    if (result === "fallback") open();
+  buttons.forEach((button) => {
+    button.addEventListener("click", async () => {
+      const result = await shareItem(payload);
+      if (result === "fallback") open();
+    });
   });
   back?.addEventListener("click", close);
   root.querySelector("[data-copy-link]")?.addEventListener("click", async () => {

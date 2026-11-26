@@ -68,6 +68,7 @@ export async function renderDetail(view, route, session) {
       <h2>Dónde queda</h2>
       <p class="address" data-testid="address">${esc(listing.address || "Sin dirección cargada")}</p>
       <div class="map-actions">
+        <button type="button" class="btn btn-ghost" data-share data-testid="share">Compartir</button>
         <a class="btn btn-primary" data-testid="directions" target="_blank" rel="noopener noreferrer" href="${esc(mapsDirectionsUrl(listing.lat, listing.lng))}">Cómo llegar en Google Maps</a>
       </div>
       <iframe class="gmap" data-testid="gmap" title="Mapa de ${esc(listing.title)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${esc(mapsEmbedUrl(listing.lat, listing.lng))}"></iframe>
