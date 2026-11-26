@@ -272,7 +272,7 @@ export async function saveProfile({ full_name, whatsapp }) {
 export function photoUrl(path) {
   if (!path) return "";
   if (/^(https?:|data:|blob:)/.test(path)) return path;
-  const base = import.meta.env.BASE_URL || "./";
+  const base = import.meta.env?.BASE_URL || "./";
   if (path.startsWith("demo/") || isDemo()) return `${base}${path.replace(/^\.\//, "")}`;
   const { data } = getClient().storage.from("listing-photos").getPublicUrl(path);
   return data.publicUrl;

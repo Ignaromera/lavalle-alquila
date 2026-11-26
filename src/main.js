@@ -1,5 +1,6 @@
 import "./styles.css";
 import { getSession, isDemo, watchAuth } from "./api.js";
+import { demoBannerHtml } from "./demo-ui.js";
 import { onRender } from "./bus.js";
 import { createRenderQueue } from "./render-queue.js";
 import { icon } from "./icons.js";
@@ -59,7 +60,7 @@ function shell(route, session) {
       </a>
       <a class="who" href="#/cuenta">${name ? esc(name) : "Entrar"}</a>
     </header>
-    ${isDemo() ? `<p class="demo-banner">Modo ejemplo: estos avisos son ficticios, para ver cómo va a quedar.</p>` : ""}
+    ${isDemo() ? demoBannerHtml() : ""}
     <main id="view" class="view"><p class="fine">Cargando…</p></main>
     <nav class="tabbar" aria-label="Secciones">
       ${tab("home", "#/", "Inicio", "home")}

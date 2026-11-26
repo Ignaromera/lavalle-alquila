@@ -1,7 +1,8 @@
 import { getListing, isDemo, listSlots, maybeTrackView, photoUrl, reportListing, requestBooking, trackStat } from "../api.js";
 import { render } from "../bus.js";
 import { upsellHtml } from "../cards.js";
-import { isPublicListing } from "../filter.js";
+import { demoNoticeHtml } from "../demo-ui.js";
+import { isNewListing, isPublicListing } from "../filter.js";
 import { amenityLabel, esc, formatArs, hoursLabel, listingWaText, mapsDirectionsUrl, mapsEmbedUrl, priceLabel, typeLabel, waLink } from "../format.js";
 import { isVenue } from "../geo.js";
 import { setPageMeta } from "../meta.js";
@@ -37,6 +38,7 @@ export async function renderDetail(view, route, session) {
   });
   view.innerHTML = `
     <article class="detail" data-testid="detail">
+      ${isDemo() && mine ? demoNoticeHtml() : ""}
       ${listing.status === "hidden" ? `<p class="error">Este aviso está oculto por las denuncias. En el sitio real no aparece en el listado hasta que moderación lo restaure.</p>` : ""}
       <a class="back" href="${venue ? "#/quinchos" : "#/"}">${icon("arrow")} Volver</a>
       <div class="gallery" tabindex="0" aria-label="Fotos del aviso">
@@ -47,6 +49,7 @@ export async function renderDetail(view, route, session) {
       ${photos.length > 1 ? `<div class="dots" aria-hidden="true">${photos.map((_, index) => `<i${index === 0 ? ' class="on"' : ""}></i>`).join("")}</div>` : ""}
       <div class="head-chips">
         ${listing.featured ? '<span class="badge badge-gold">Destacado</span>' : ""}
+        ${isNewListing(listing) ? '<span class="badge badge-nuevo">Nuevo</span>' : ""}
         <span class="badge">${esc(typeLabel(listing.type))}</span>
         ${listing.example ? '<span class="badge badge-ejemplo">Ejemplo</span>' : ""}
       </div>

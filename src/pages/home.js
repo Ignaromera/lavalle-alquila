@@ -1,7 +1,7 @@
 import { listListings } from "../api.js";
 import { render } from "../bus.js";
 import { districtOptions, listingCard } from "../cards.js";
-import { activeFilterCount, filtersFromParams, queryFromFilters } from "../filter.js";
+import { activeFilterCount, filtersFromParams, queryFromFilters, SORT_OPTIONS, storeSort } from "../filter.js";
 import { esc } from "../format.js";
 import { icon } from "../icons.js";
 import { HOUSING_TYPES, VENUE_TYPES } from "../geo.js";
@@ -43,6 +43,12 @@ async function renderCatalog(view, route, config) {
         ${icon("filter")} Filtrar ${count ? `<span class="count">${count}</span>` : ""}
       </button>
       <a class="btn btn-ghost" href="#/mapa${esc(query)}">${icon("map")} Ver mapa</a>
+      <label class="sort-field">
+        <span class="sr-only">Ordenar</span>
+        <select data-sort data-testid="sort-select" aria-label="Ordenar avisos">
+          ${SORT_OPTIONS.map((option) => `<option value="${option.id}"${filters.sort === option.id ? " selected" : ""}>${option.label}</option>`).join("")}
+        </select>
+      </label>
     </div>
     ${config.kind === "housing" ? `<div class="quick">
       <a href="#/quinchos">Quinchos y salones</a>
@@ -122,7 +128,13 @@ async function renderCatalog(view, route, config) {
   };
   view.querySelector("[data-open-filters]").addEventListener("click", open);
   back.addEventListener("click", close);
-  view.querySelector("[data-clear-filters]").addEventListener("click", () => navigate(config.base));
+  view.querySelector("[data-clear-filters]").addEventListener("click", () => {
+    navigate(`${config.base}${queryFromFilters({ kind: config.kind, sort: filters.sort })}`);
+  });
+  view.querySelector("[data-sort]").addEventListener("change", (event) => {
+    const sort = storeSort(event.target.value);
+    navigate(`${config.base}${queryFromFilters({ ...filters, sort })}`);
+  });
   sheet.addEventListener("submit", (event) => {
     event.preventDefault();
     const data = new FormData(sheet);
@@ -136,6 +148,7 @@ async function renderCatalog(view, route, config) {
       minCapacity: String(data.get("capacidad") || "").replace(/\D/g, ""),
       priceUnit: String(data.get("unidad") || ""),
       amenities: data.getAll("comodidades").map(String),
+      sort: filters.sort,
     };
     close();
     navigate(`${config.base}${queryFromFilters(next)}`);

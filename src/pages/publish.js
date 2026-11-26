@@ -9,6 +9,7 @@ import {
 } from "../api.js";
 import { render } from "../bus.js";
 import { districtOptions, upsellHtml } from "../cards.js";
+import { demoNoticeHtml } from "../demo-ui.js";
 import { authBoxHtml, bindAuth, demoLoginsHtml } from "./auth-ui.js";
 import { DEMO_LOGIN } from "../api.js";
 import { esc, parseMoney } from "../format.js";
@@ -40,6 +41,7 @@ export async function renderPublish(view, route, session, hooks = {}) {
       <p class="lede">En el teléfono, en un par de minutos. Sale publicado al toque: no hay aprobación previa.</p>
     </section>
     <p class="plan-note">Plan <strong>${plan}</strong> · hasta ${max} aviso${max === 1 ? "" : "s"} activo${max === 1 ? "" : "s"}. Más adelante vas a poder ampliarlo.</p>
+    ${isDemo() ? demoNoticeHtml() : ""}
     ${session && used >= max && !editingId ? `<p class="error">Ya tenés ${used} aviso${used === 1 ? "" : "s"} activo${used === 1 ? "" : "s"}. Marcá uno como alquilado o eliminalo para publicar otro. La base también lo frena.</p>` : ""}
     ${session ? "" : authBoxHtml()}
     ${!session ? demoLoginsHtml(DEMO_LOGIN) : ""}

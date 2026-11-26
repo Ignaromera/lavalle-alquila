@@ -1,6 +1,7 @@
 import { createSeek, deleteSeek, ensureDemoProfile, getSeek, isDemo, listSeeks, maybeTrackView, renewSeek, trackStat } from "../api.js";
 import { render } from "../bus.js";
 import { districtOptions } from "../cards.js";
+import { demoNoticeHtml } from "../demo-ui.js";
 import { authBoxHtml, bindAuth, demoLoginsHtml } from "./auth-ui.js";
 import { DEMO_LOGIN } from "../api.js";
 import { esc, formatArs, formatWhen, parseMoney, seekWaText, typeLabel, waLink } from "../format.js";
@@ -16,6 +17,7 @@ export async function renderSeeks(view) {
       <h1 tabindex="-1">Busco alquiler</h1>
       <p class="lede">Si estás buscando, dejanos el aviso. Quien tenga algo te escribe por WhatsApp.</p>
     </section>
+    ${isDemo() ? demoNoticeHtml() : ""}
     <p><a class="btn btn-primary" href="#/busco/nuevo">Publicar lo que busco</a></p>
     <div class="stack" data-testid="seeks">
       ${seeks.length ? seeks.map((seek) => `<article class="seek">
@@ -71,6 +73,7 @@ export async function renderSeekNew(view, route, session) {
       <h1 tabindex="-1">Qué estás buscando</h1>
       <p class="lede">Dura 60 días. Después lo podés renovar desde tu cuenta.</p>
     </section>
+    ${isDemo() ? demoNoticeHtml() : ""}
     ${session ? "" : authBoxHtml()}
     ${!session ? demoLoginsHtml(DEMO_LOGIN) : ""}
     <form class="stack" data-testid="seek-form">

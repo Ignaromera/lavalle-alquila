@@ -17,6 +17,7 @@ import {
 import { config } from "../config.js";
 import { render } from "../bus.js";
 import { upsellHtml } from "../cards.js";
+import { demoNoticeHtml } from "../demo-ui.js";
 import { authBoxHtml, bindAuth, demoLoginsHtml, legalLinksHtml } from "./auth-ui.js";
 import { bindSeekActions, seekOwnerCard } from "./seeks.js";
 import { confirmWaText, esc, formatDay, formatWhen, givenName, priceLabel, shiftLabel, typeLabel, waLink } from "../format.js";
@@ -63,6 +64,7 @@ export async function renderAccount(view, route, session) {
       <h1 tabindex="-1">Hola, ${esc(givenName(session.profile.full_name) || "vecino")}</h1>
       <p class="lede">${esc(session.profile.email || "")}</p>
     </section>
+    ${isDemo() ? demoNoticeHtml() : ""}
     <p class="plan-note">Plan <strong>${plan}</strong> · hasta ${esc(session.profile.max_listings)} aviso(s) activo(s). ${turnero ? "El turnero está habilitado en tus quinchos y salones nuevos." : "El turnero no está incluido en este plan."}</p>
     ${statsPanelHtml(listings, seeks, stats, recentDays(7))}
     ${!session.profile.whatsapp ? `<p class="note">Para publicar, completá tu nombre y tu WhatsApp. Si entraste con Google, el nombre puede venir solo.</p>` : ""}

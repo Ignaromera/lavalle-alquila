@@ -1,4 +1,5 @@
 import { photoUrl } from "./api.js";
+import { isNewListing } from "./filter.js";
 import { amenityLabel, esc, priceLabel, typeLabel } from "./format.js";
 import { DISTRICTS, isVenue } from "./geo.js";
 
@@ -27,6 +28,7 @@ export function listingCard(listing) {
       ${src ? `<img src="${esc(src)}" alt="${esc(alt)}" />` : `<div class="photo-fallback">${esc(typeLabel(listing.type))}</div>`}
       <div class="badges card-badges">
         ${listing.featured ? '<span class="badge badge-gold">Destacado</span>' : ""}
+        ${isNewListing(listing) ? '<span class="badge badge-nuevo">Nuevo</span>' : ""}
         <span class="badge">${esc(typeLabel(listing.type))}</span>
         ${listing.example ? '<span class="badge badge-ejemplo">Ejemplo</span>' : ""}
       </div>
