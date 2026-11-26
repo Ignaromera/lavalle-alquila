@@ -17,6 +17,8 @@ export const config = {
 };
 
 export function isConfigured() {
+  // ?demo en la URL fuerza el modo ejemplo (para mostrar la app con avisos ficticios).
+  if (typeof location !== "undefined" && new URLSearchParams(location.search).has("demo")) return false;
   const url = String(config.supabaseUrl || "").trim();
   const key = String(config.supabaseAnonKey || "").trim();
   if (!url || !key) return false;
