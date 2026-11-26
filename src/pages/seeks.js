@@ -71,7 +71,7 @@ export async function renderSeekNew(view, route, session) {
       <h1 tabindex="-1">Qué estás buscando</h1>
       <p class="lede">Dura 60 días. Después lo podés renovar desde tu cuenta.</p>
     </section>
-    ${authBoxHtml()}
+    ${session ? "" : authBoxHtml()}
     ${!session ? demoLoginsHtml(DEMO_LOGIN) : ""}
     <form class="stack" data-testid="seek-form">
       ${ready ? "" : `<label class="field">Tu nombre<input name="full_name" required value="${esc(session?.profile.full_name || "")}" /></label>
@@ -101,7 +101,7 @@ export async function renderSeekNew(view, route, session) {
       render();
     });
   });
-  view.querySelector("form").addEventListener("submit", async (event) => {
+  view.querySelector("[data-testid=seek-form]").addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
     try {

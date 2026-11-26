@@ -3,7 +3,7 @@ import { esc } from "../format.js";
 import { toast } from "../toast.js";
 
 export function legalLinksHtml() {
-  const base = import.meta.env.BASE_URL;
+  const base = import.meta.env?.BASE_URL || "./";
   return `<nav class="legal" aria-label="Información legal">
     <a href="${base}privacidad.html">Política de privacidad</a>
     <a href="${base}terminos.html">Términos y condiciones</a>
