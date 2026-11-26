@@ -448,6 +448,29 @@ p { margin: 0 0 10px; }
 .demo-logins .btn { width: 100%; justify-content: flex-start; text-align: left; }
 .footer-links { margin-top: 18px; }
 .owner { color: var(--muted); }
+.stats { margin: 8px 0 16px; }
+.week-chart {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+  height: 148px;
+  align-items: end;
+  margin-top: 8px;
+}
+.week-col { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }
+.week-bars { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; gap: 2px; }
+.bar { display: block; width: 28%; border-radius: 4px 4px 0 0; min-height: 2px; }
+.bar-view { background: #2c5b45; }
+.bar-share { background: #c4552a; }
+.bar-wa { background: #128a45; }
+.legend .bar-view, .legend .bar-share, .legend .bar-wa { width: 10px; height: 10px; border-radius: 50%; min-height: 0; }
+.stat-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px;
+}
+.stat-nums { display: flex; flex-wrap: wrap; gap: 8px 12px; color: var(--muted); font-weight: 650; margin: 0; }
 
 .toast {
   position: fixed;

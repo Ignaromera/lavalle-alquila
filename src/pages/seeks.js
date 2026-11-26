@@ -1,4 +1,4 @@
-import { createSeek, deleteSeek, ensureDemoProfile, getSeek, isDemo, listSeeks, renewSeek } from "../api.js";
+import { createSeek, deleteSeek, ensureDemoProfile, getSeek, isDemo, listSeeks, maybeTrackView, renewSeek, trackStat } from "../api.js";
 import { render } from "../bus.js";
 import { districtOptions } from "../cards.js";
 import { authBoxHtml, bindAuth, demoLoginsHtml } from "./auth-ui.js";
@@ -24,11 +24,14 @@ export async function renderSeeks(view) {
         <p>${esc(seek.note)}</p>
         <p class="fine">${esc(seek.owner_name || "Vecino")}${seek.example ? " · ejemplo" : ""}</p>
         <div class="row-actions">
-          <a class="btn btn-wa" target="_blank" rel="noopener noreferrer" href="${esc(waLink(seek.whatsapp, seekWaText(seek)))}">Escribir por WhatsApp</a>
+          <a class="btn btn-wa" data-stat="whatsapp" data-id="${esc(seek.id)}" target="_blank" rel="noopener noreferrer" href="${esc(waLink(seek.whatsapp, seekWaText(seek)))}">Escribir por WhatsApp</a>
           <a class="btn btn-ghost" href="#/busco/${esc(seek.id)}">Compartir</a>
         </div>
       </article>`).join("") : `<p class="empty">Todavía no hay búsquedas. Sé la primera.</p>`}
     </div>`;
+  view.querySelectorAll("[data-stat=whatsapp]").forEach((link) => {
+    link.addEventListener("click", () => trackStat("seek", link.dataset.id, "whatsapp"));
+  });
 }
 
 export async function renderSeek(view, route) {
@@ -51,10 +54,14 @@ export async function renderSeek(view, route) {
       <p>${esc(seek.note)}</p>
       <p class="fine">${esc(seek.owner_name || "Vecino")}${seek.example ? " · ejemplo" : ""}</p>
       <button type="button" class="btn btn-ghost" data-share data-testid="share">Compartir</button>
-      <p><a class="btn btn-wa" target="_blank" rel="noopener noreferrer" href="${esc(waLink(seek.whatsapp, seekWaText(seek)))}">Escribir por WhatsApp</a></p>
+      <p><a class="btn btn-wa" data-stat="whatsapp" target="_blank" rel="noopener noreferrer" href="${esc(waLink(seek.whatsapp, seekWaText(seek)))}">Escribir por WhatsApp</a></p>
       ${shareFallbackHtml({ title, text, url })}
     </article>`;
-  bindShare(view, { title, text, url });
+  bindShare(view, { title, text, url, onShare: () => trackStat("seek", seek.id, "share") });
+  view.querySelectorAll("[data-stat=whatsapp]").forEach((link) => {
+    link.addEventListener("click", () => trackStat("seek", seek.id, "whatsapp"));
+  });
+  maybeTrackView("seek", seek.id);
 }
 
 export async function renderSeekNew(view, route, session) {

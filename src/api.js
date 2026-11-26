@@ -2,7 +2,8 @@ import { createClient } from "@supabase/supabase-js";
 import { config, isConfigured } from "./config.js";
 import * as demo from "./demo-store.js";
 import { applyFilters } from "./filter.js";
-import { clock, normalizeWhatsapp } from "./format.js";
+import { clock, isoDay, normalizeWhatsapp } from "./format.js";
+import { claimDailyView } from "./stats.js";
 import { compressImage, readDataUrl } from "./photos.js";
 
 const DEMO_KEY = "lavalle-demo-user";
@@ -421,6 +422,42 @@ export async function reportListing(id, { reason, details }) {
     if (/duplicate|unique/i.test(error.message)) throw new Error("Ya denunciaste este aviso. Gracias.");
     throw asError(error);
   }
+}
+
+export async function trackStat(subjectType, subjectId, kind) {
+  try {
+    if (isDemo()) {
+      demo.trackStat(mem(), subjectType, subjectId, kind);
+      return;
+    }
+    await getClient().rpc("track_stat", {
+      p_subject_type: subjectType,
+      p_subject_id: subjectId,
+      p_kind: kind,
+    });
+  } catch {
+    /* la estadística no debe frenar la página */
+  }
+}
+
+export async function maybeTrackView(subjectType, subjectId) {
+  let storage;
+  try {
+    storage = localStorage;
+  } catch {
+    return;
+  }
+  if (!claimDailyView(storage, subjectType, subjectId, isoDay(new Date()))) return;
+  await trackStat(subjectType, subjectId, "view");
+}
+
+export async function myStats() {
+  const session = await getSession();
+  if (!session) return [];
+  if (isDemo()) return demo.statsForOwner(mem(), session.user.id);
+  const { data, error } = await getClient().from("stat_daily").select("subject_type, subject_id, kind, day, count");
+  if (error) throw asError(error);
+  return data || [];
 }
 
 export async function getSeek(id) {

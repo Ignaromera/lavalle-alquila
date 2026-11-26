@@ -173,6 +173,21 @@ begin
   insert into public.booking_slots (listing_id, offer_id, slot_date)
   values (quincho, '66666666-6666-4666-8666-666666666661', current_date + 5);
 
+  perform public.track_stat('listing', quincho, 'view');
+  perform public.track_stat('listing', quincho, 'view');
+  perform public.track_stat('listing', quincho, 'share');
+  if (select count from public.stat_daily where subject_id = quincho and kind = 'view') <> 2 then
+    raise exception 'track_stat no sumó las visitas';
+  end if;
+  perform public.track_stat('listing', house, 'view');
+  if exists (select 1 from public.stat_daily where subject_id = house) then
+    raise exception 'Contó un aviso que no está publicado';
+  end if;
+  perform public.track_stat('listing', quincho, 'otro');
+  if exists (select 1 from public.stat_daily where subject_id = quincho and kind = 'otro') then
+    raise exception 'Aceptó un tipo de evento inválido';
+  end if;
+
   raise notice 'schema ok';
 end
 $$;
