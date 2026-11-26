@@ -1,0 +1,158 @@
+# Cómo poner Lavalle Alquila en línea, gratis
+
+Todo corre en el plan gratuito: GitHub Pages para la página y Supabase para las cuentas, la base y las fotos. No hace falta tarjeta.
+
+El repositorio es `Ignaromera/lavalle-alquila`. Cuando Pages esté activo, el sitio va a quedar en:
+
+`https://ignaromera.github.io/lavalle-alquila/`
+
+Hasta que pegues las claves, quien abra el sitio ve el **modo ejemplo** (avisos ficticios, marcados como ejemplo).
+
+## 1. Crear el proyecto de Supabase
+
+1. Entrá a [https://supabase.com](https://supabase.com) y creá una cuenta.
+2. **New project**. Elegí el plan **Free**.
+3. Nombre: `lavalle-alquila`. Contraseña de la base: guardala, no va en la página.
+4. Región: la más cercana (por ejemplo South America, si aparece).
+5. Esperá a que el proyecto termine de crearse.
+
+## 2. Correr el SQL
+
+1. En el proyecto, abrí **SQL Editor** → **New query**.
+2. Copiá todo el archivo [`supabase/schema.sql`](supabase/schema.sql) y pegalo.
+3. **Run**. Tiene que terminar sin errores.
+4. Si más adelante lo volvés a correr entero, va a fallar porque las tablas ya existen. Es un script de instalación, de una sola vez.
+
+Eso crea:
+
+- perfiles, avisos, denuncias, búsquedas y el turnero
+- el límite de **1 aviso activo** por cuenta gratis (un trigger, no solo la pantalla)
+- el ocultado automático a la **tercera denuncia**
+- el vencimiento a los **60 días** (los vencidos no salen en el listado; no hace falta un cron)
+- la regla de **un solo turno confirmado** por día y turno
+- el bucket público `listing-photos` (fotos de hasta 2 MB; la página las achica antes)
+
+Si el bucket no aparece en **Storage**, crealo a mano: nombre `listing-photos`, público, límite 2 MB, tipos `image/jpeg`, `image/png`, `image/webp`. Las políticas del SQL igual tienen que estar.
+
+## 3. Anotarte como admin
+
+En el SQL Editor:
+
+```sql
+insert into public.admin_emails (email) values ('tu@email.com');
+```
+
+Usá el mismo email con el que vas a entrar a la página. Sin esa fila, la moderación no te deja pasar aunque pongas el email en el código.
+
+## 4. Login por email
+
+1. **Authentication** → **Providers** → **Email**: dejalo prendido.
+2. Dejá **Confirm email** activado.
+3. **Authentication** → **URL configuration**:
+   - **Site URL**: `https://ignaromera.github.io/lavalle-alquila/`
+   - **Redirect URLs**, agregá estas (con y sin barra final):
+     - `https://ignaromera.github.io/lavalle-alquila/`
+     - `https://ignaromera.github.io/lavalle-alquila`
+     - `http://127.0.0.1:5173`
+     - `http://localhost:5173`
+4. **Authentication** → **Email templates** → **Magic Link**. Reemplazá el cuerpo por algo así, para que llegue el código y también el enlace:
+
+```html
+<h2>Tu entrada a Lavalle Alquila</h2>
+<p>Código: {{ .Token }}</p>
+<p>O abrí este enlace:</p>
+<p><a href="{{ .ConfirmationURL }}">Entrar</a></p>
+<p>Si no fuiste vos, ignorá este mensaje.</p>
+```
+
+El enlace usa el flujo PKCE (`?code=` en la dirección), así no choca con las rutas `#/aviso/...` de la página.
+
+El plan gratis manda pocos correos por hora. No lo pruebes diez veces seguidas.
+
+## 5. Pegar la URL y la clave anónima
+
+1. **Project Settings** → **API**.
+2. Copiá **Project URL** y la clave **anon public** (empieza con `eyJ`). No copies la `service_role`: esa abre toda la base y no puede ir en el navegador.
+3. Editá [`src/config.js`](src/config.js):
+
+```js
+export const config = {
+  supabaseUrl: "https://TU_PROYECTO.supabase.co",
+  supabaseAnonKey: "eyJ...la anon key...",
+  adminEmails: ["tu@email.com"],
+};
+```
+
+`adminEmails` solo muestra el enlace de moderación. Quien autoriza de verdad es la tabla `admin_emails`.
+
+4. Commit y push a `main`.
+
+Para probar en tu máquina antes de subir: `npm install` y `npm run dev`.
+
+## 6. Prender GitHub Pages
+
+1. En el repo de GitHub: **Settings** → **Pages**.
+2. **Build and deployment** → **Source**: **GitHub Actions**.
+3. El archivo [`.github/workflows/pages.yml`](.github/workflows/pages.yml) ya publica `dist/` en cada push a `main`.
+4. Entrá a **Actions** y esperá a que el workflow termine en verde.
+5. Abrí `https://ignaromera.github.io/lavalle-alquila/`.
+
+La primera vez puede tardar un par de minutos. Si ves el cartel de modo ejemplo, las claves no llegaron al build: revisá que `src/config.js` esté en el commit que se publicó.
+
+## 7. Probar el circuito
+
+1. Entrá con tu email y completá nombre y WhatsApp (con código de país, o un número de Mendoza de 10 dígitos: lo convertimos a `549...`).
+2. Publicá un aviso de prueba, con una foto y el pin dentro de Lavalle. Sale enseguida, sin aprobación.
+3. Intentá publicar otro: la base tiene que rechazarlo mientras el primero siga activo. Marcalo como alquilado o eliminalo y recién ahí podés cargar otro.
+4. Desde otro navegador, denunciá el mismo aviso tres veces (o con tres visitas distintas). A la tercera desaparece del listado.
+5. Entrá con el email admin y abrí **Moderación**. Ahí podés restaurar, quitar, destacar o prender el turnero.
+
+## Destacados y turnero, sin cobrar todavía
+
+No hay Mercado Pago ni ningún otro cobro. Los ganchos ya están en la base para cuando quieras sumarlo:
+
+| Qué | Dónde | Para qué |
+| --- | --- | --- |
+| Plan | `profiles.plan` (`free` o `pro`) | Etiqueta del plan |
+| Tope de avisos | `profiles.max_listings` | El gratis vale 1. Subilo para un plan pago |
+| Turnero en la cuenta | `profiles.booking_enabled` | Los quinchos y salones **nuevos** salen con calendario |
+| Turnero de un aviso | `listings.booking_enabled` | Calendario de ese quincho o salón |
+| Destacado | `listings.featured` | Se muestra primero |
+
+Desde **Moderación** (con tu email en `admin_emails`) podés destacar y prender o apagar el turnero. También podés hacerlo en el SQL Editor, que corre como dueño de la base:
+
+```sql
+update public.profiles
+set plan = 'pro', booking_enabled = true, max_listings = 5
+where id = 'UUID-DEL-USUARIO';
+
+update public.listings
+set booking_enabled = true
+where id = 'UUID-DEL-QUINCHO';
+
+update public.listings
+set featured = true
+where id = 'UUID-DEL-AVISO';
+```
+
+El aviso del quincho o salón se publica gratis, como el resto. El calendario es el extra. Si el flag está apagado, la ficha muestra: «Activá el turnero (próximamente, servicio pago)» y la consulta sigue por WhatsApp.
+
+Quien alquila marca los días y turnos libres (día completo, o mediodía y noche). Otra persona pide ese turno con nombre, WhatsApp, cantidad de gente y una nota. En tu cuenta ves el pedido: **Confirmar y abrir WhatsApp** manda el mensaje ya escrito y deja el turno tomado. **Rechazar** lo vuelve a liberar. No puede haber dos reservas confirmadas del mismo día y turno: lo impide un índice único.
+
+## Límites del plan gratis
+
+- Supabase free: base chica, 1 GB de storage, ancho de banda y correos de login limitados. Alcanza para un tablón de Lavalle.
+- Las fotos se guardan en `listing-photos`, públicas, a nombre de quien las subió (`su-usuario/id-del-aviso/foto.jpg`).
+- El mapa usa teselas de OpenStreetMap. Para un sitio chico está bien. No scrapees el mapa ni lo uses como GPS de flota.
+- El contorno de Lavalle es el del departamento en OpenStreetMap, simplificado. Un punto justo sobre el límite puede quedar afuera. Si pasa con una calle real de Lavalle, se puede aflojar el polígono en `data/lavalle-boundary.json` y en `point_in_lavalle` dentro del SQL.
+- Cualquiera puede denunciar. Con tres denuncias el aviso se oculta. Alguien insistido puede esconder un aviso legítimo; por eso la moderación puede restaurarlo.
+- Los avisos vencen a los 60 días solos, porque el listado público pide `expires_at` futuro. No hay que programar un cron.
+
+## Si algo no entra
+
+- **No llega el correo**: mirá spam, la plantilla Magic Link y el límite de envíos. El enlace tiene que volver a la URL de Pages.
+- **«No autorizado» al publicar**: falta el perfil (nombre y WhatsApp) o el trigger de `auth.users` no se creó. Entrá de nuevo: la página crea el perfil si no está.
+- **La foto no sube**: el bucket tiene que ser público y la política de insert tiene que dejar la carpeta de tu usuario. La foto ya comprimida no puede pasar de 2 MB.
+- **El pin no deja publicar**: está fuera del polígono. Acercate a Villa Tulumaya y tocá de nuevo.
+
+La `service_role` no se pega en `config.js` ni se sube al repo.
