@@ -6,14 +6,14 @@
  * No pongas acá la service_role. Esa clave no va en el navegador.
  */
 export const config = {
-  supabaseUrl: "",
-  supabaseAnonKey: "",
+  supabaseUrl: "https://tfiggzureidsozbzkyif.supabase.co",
+  supabaseAnonKey: "sb_publishable_yGdRVqCho7BzD40sdpkxqw_x-lcoJ6R",
   /**
    * Los mismos emails que cargues en la tabla admin_emails.
    * Sirve para mostrar el enlace de moderación.
    * Quien autoriza de verdad es la base, no esta lista.
    */
-  adminEmails: [],
+  adminEmails: ["jirfcarp@gmail.com"],
 };
 
 export function isConfigured() {
