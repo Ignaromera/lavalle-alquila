@@ -89,13 +89,13 @@ export function turneroHtml({ listing, slots, mode }) {
   return `<section class="turnero" data-testid="turnero" data-listing="${esc(listing.id)}">
     <header class="turnero-head">
       <div>
-        <h2>${mode === "owner" ? "Administrar turnero" : "Reservar un turno"}</h2>
+        <h2>${mode === "owner" ? "Administrar turnero" : "Reservá tu turno"}</h2>
         <p>Cada horario tiene su precio. Capacidad: ${esc(listing.capacity)} personas.</p>
       </div>
     </header>
-    <ul class="offer-menu">
+    ${mode === "owner" ? `<ul class="offer-menu">
       ${offers.map((offer) => `<li>${esc(slotSummary(offer))}</li>`).join("")}
-    </ul>
+    </ul>` : ""}
     <div class="cal-head">
       <button type="button" class="btn btn-small btn-ghost" data-cal="prev" aria-label="Mes anterior">←</button>
       <strong>${esc(title)}</strong>

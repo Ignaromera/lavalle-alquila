@@ -20,7 +20,7 @@ export async function renderMap(view, route) {
       <div class="map-canvas" data-testid="map" role="region" aria-label="Mapa de avisos"></div>
       <div class="map-peek" hidden></div>
     </div>
-    <p class="fine map-note">${listings.length} aviso${listings.length === 1 ? "" : "s"} en el mapa. Los límites verdes son el departamento de Lavalle.</p>`;
+    <p class="fine map-note">${listings.length} aviso${listings.length === 1 ? "" : "s"} en el mapa. La línea naranja marca el límite del departamento de Lavalle.</p>`;
 
   view.querySelectorAll("[data-vista]").forEach((button) => {
     button.addEventListener("click", () => {

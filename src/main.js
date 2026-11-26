@@ -49,12 +49,13 @@ function shell(route, session) {
   const name = givenName(session?.profile?.full_name);
   const tab = (id, href, label, glyph) => {
     const on = route.name === id;
-    return `<a class="tab${on ? " is-on" : ""}" href="${href}" ${on ? 'aria-current="page"' : ""}>${icon(glyph)}<span>${label}</span></a>`;
+    return `<a class="tab${on ? " is-on" : ""}${glyph === "plus" ? " tab-plus" : ""}" href="${href}" ${on ? 'aria-current="page"' : ""}>${icon(glyph)}<span>${label}</span></a>`;
   };
   return `
     <header class="topbar">
-      <a class="brand" href="#/">
-        <img src="${base}brand/lavalle-alquila-linea.svg" width="193" height="30" alt="Lavalle Alquila" />
+      <a class="wordmark" href="#/" aria-label="Lavalle Alquila, inicio">
+        <img src="${base}brand/lavalle-alquila-marca.svg" width="30" height="24" alt="" />
+        <span class="wm-text">Lavalle Alquila <small>Mendoza</small></span>
       </a>
       <a class="who" href="#/cuenta">${name ? esc(name) : "Entrar"}</a>
     </header>

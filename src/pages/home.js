@@ -3,6 +3,7 @@ import { render } from "../bus.js";
 import { districtOptions, listingCard } from "../cards.js";
 import { activeFilterCount, filtersFromParams, queryFromFilters } from "../filter.js";
 import { esc } from "../format.js";
+import { icon } from "../icons.js";
 import { HOUSING_TYPES, VENUE_TYPES } from "../geo.js";
 import { navigate } from "../router.js";
 
@@ -38,10 +39,10 @@ async function renderCatalog(view, route, config) {
       <p class="lede">${esc(config.lede)}</p>
     </section>
     <div class="toolbar">
-      <button type="button" class="btn btn-ghost" data-open-filters>
-        Filtrar ${count ? `<span class="count-pill">${count}</span>` : ""}
+      <button type="button" class="btn btn-dark" data-open-filters>
+        ${icon("filter")} Filtrar ${count ? `<span class="count">${count}</span>` : ""}
       </button>
-      <a class="btn btn-ghost" href="#/mapa${esc(query)}">Ver mapa</a>
+      <a class="btn btn-ghost" href="#/mapa${esc(query)}">${icon("map")} Ver mapa</a>
     </div>
     ${config.kind === "housing" ? `<div class="quick">
       <a href="#/quinchos">Quinchos y salones</a>

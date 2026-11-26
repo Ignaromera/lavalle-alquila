@@ -25,16 +25,18 @@ export function listingCard(listing) {
   return `<a class="card" href="#/aviso/${esc(listing.id)}" data-testid="listing-card">
     <div class="card-photo">
       ${src ? `<img src="${esc(src)}" alt="${esc(alt)}" />` : `<div class="photo-fallback">${esc(typeLabel(listing.type))}</div>`}
-      <div class="card-badges">
+      <div class="badges card-badges">
         ${listing.featured ? '<span class="badge badge-gold">Destacado</span>' : ""}
         <span class="badge">${esc(typeLabel(listing.type))}</span>
         ${listing.example ? '<span class="badge badge-ejemplo">Ejemplo</span>' : ""}
       </div>
+      <div class="card-over">
+        <p class="eyebrow">${esc(listing.district)}</p>
+        <h2>${esc(listing.title)}</h2>
+        <p class="price">${esc(priceLabel(listing))}</p>
+      </div>
     </div>
     <div class="card-body">
-      <p class="eyebrow">${esc(listing.district)}</p>
-      <h2>${esc(listing.title)}</h2>
-      <p class="price">${esc(priceLabel(listing))}</p>
       <p class="reqs">${esc(listing.requirements || "")}</p>
       <div class="chips">${chips.map((chip) => `<span class="chip">${esc(chip)}</span>`).join("")}</div>
     </div>

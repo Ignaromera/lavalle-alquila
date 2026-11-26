@@ -2,9 +2,10 @@ import { getListing, isDemo, listSlots, maybeTrackView, photoUrl, reportListing,
 import { render } from "../bus.js";
 import { upsellHtml } from "../cards.js";
 import { isPublicListing } from "../filter.js";
-import { amenityLabel, esc, listingWaText, mapsDirectionsUrl, mapsEmbedUrl, offerLine, priceLabel, typeLabel, waLink } from "../format.js";
+import { amenityLabel, esc, formatArs, hoursLabel, listingWaText, mapsDirectionsUrl, mapsEmbedUrl, priceLabel, typeLabel, waLink } from "../format.js";
 import { isVenue } from "../geo.js";
 import { setPageMeta } from "../meta.js";
+import { icon } from "../icons.js";
 import { bindShare, listingUrl, shareFallbackHtml } from "../share.js";
 import { bindTurnero, calFor, turneroHtml } from "../turnero-ui.js";
 import { toast } from "../toast.js";
@@ -37,29 +38,30 @@ export async function renderDetail(view, route, session) {
   view.innerHTML = `
     <article class="detail" data-testid="detail">
       ${listing.status === "hidden" ? `<p class="error">Este aviso está oculto por las denuncias. En el sitio real no aparece en el listado hasta que moderación lo restaure.</p>` : ""}
-      <a class="back" href="${venue ? "#/quinchos" : "#/"}">← Volver</a>
+      <a class="back" href="${venue ? "#/quinchos" : "#/"}">${icon("arrow")} Volver</a>
       <div class="gallery" tabindex="0" aria-label="Fotos del aviso">
         <div class="gallery-track">
           ${photos.length ? photos.map((src, index) => `<img src="${esc(photoUrl(src))}" alt="${esc((listing.example ? "Foto de ejemplo" : "Foto") + ` ${index + 1}: ${listing.title}`)}" />`).join("") : `<div class="photo-fallback big">${esc(typeLabel(listing.type))}</div>`}
         </div>
       </div>
-      <div class="chips head-chips">
+      ${photos.length > 1 ? `<div class="dots" aria-hidden="true">${photos.map((_, index) => `<i${index === 0 ? ' class="on"' : ""}></i>`).join("")}</div>` : ""}
+      <div class="head-chips">
         ${listing.featured ? '<span class="badge badge-gold">Destacado</span>' : ""}
         <span class="badge">${esc(typeLabel(listing.type))}</span>
         ${listing.example ? '<span class="badge badge-ejemplo">Ejemplo</span>' : ""}
       </div>
       <p class="eyebrow">${esc(listing.district)}</p>
       <h1 tabindex="-1">${esc(listing.title)}</h1>
-      <p class="price price-lg">${esc(priceLabel(listing))}</p>
-      <button type="button" class="btn btn-ghost" data-share data-testid="share">Compartir</button>
+      <p class="price price-lg">${priceHtml(listing)}</p>
       <p class="owner">Publica ${esc(listing.owner_name || "un vecino")}</p>
+      <div class="row"><button type="button" class="btn btn-ghost" data-share data-testid="share">${icon("share")} Compartir</button></div>
       <div class="chips">
         ${venue && listing.capacity ? `<span class="chip">Hasta ${esc(listing.capacity)} personas</span>` : ""}
         ${(listing.amenities || []).map((id) => `<span class="chip">${esc(amenityLabel(id))}</span>`).join("")}
         ${venue ? "" : `<span class="chip">${listing.pets_allowed ? "Acepta mascotas" : "Sin mascotas"}</span>`}
         ${venue ? "" : `<span class="chip">${listing.guarantee_required ? "Pide garantía" : "Sin garantía"}</span>`}
       </div>
-      ${venue && (listing.offers || []).length ? `<ul class="offer-menu" data-testid="offers">${listing.offers.map((offer) => `<li>${esc(offerLine(offer))}</li>`).join("")}</ul>` : ""}
+      ${venue && (listing.offers || []).length ? `<ul class="offer-menu" data-testid="offers">${listing.offers.map((offer) => `<li><div><b>${esc(offer.name)}</b><span>${esc(hoursLabel(offer.starts_at, offer.ends_at))}</span></div><em>${esc(formatArs(offer.price_ars))}</em></li>`).join("")}</ul>` : ""}
       ${venue && listing.booking_enabled ? turneroHtml({ listing, slots, mode: "visitor" }) : ""}
       ${venue && !listing.booking_enabled ? upsellHtml() : ""}
       <h2>Descripción</h2>
@@ -67,11 +69,12 @@ export async function renderDetail(view, route, session) {
       ${listing.requirements ? `<h2>Requisitos</h2><p class="prose">${esc(listing.requirements)}</p>` : ""}
       <h2>Dónde queda</h2>
       <p class="address" data-testid="address">${esc(listing.address || "Sin dirección cargada")}</p>
-      <div class="map-actions">
-        <button type="button" class="btn btn-ghost" data-share data-testid="share">Compartir</button>
-        <a class="btn btn-primary" data-testid="directions" target="_blank" rel="noopener noreferrer" href="${esc(mapsDirectionsUrl(listing.lat, listing.lng))}">Cómo llegar en Google Maps</a>
+      <div class="map-card">
+        <iframe class="gmap" data-testid="gmap" title="Mapa de ${esc(listing.title)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${esc(mapsEmbedUrl(listing.lat, listing.lng))}"></iframe>
       </div>
-      <iframe class="gmap" data-testid="gmap" title="Mapa de ${esc(listing.title)}" loading="lazy" referrerpolicy="no-referrer-when-downgrade" src="${esc(mapsEmbedUrl(listing.lat, listing.lng))}"></iframe>
+      <div class="row map-actions">
+        <a class="btn btn-primary btn-block" data-testid="directions" target="_blank" rel="noopener noreferrer" href="${esc(mapsDirectionsUrl(listing.lat, listing.lng))}">${icon("nav")} Cómo llegar en Google Maps</a>
+      </div>
       <aside class="safety">
         <h2>Antes de pagar, mirá</h2>
         <ul>
@@ -81,9 +84,9 @@ export async function renderDetail(view, route, session) {
           <li>Lavalle Alquila no cobra señas ni intermedia el pago.</li>
         </ul>
       </aside>
-      ${mine ? "" : `<button type="button" class="btn btn-ghost btn-block" data-report>Denunciar aviso</button>`}
+      ${mine ? "" : `<div class="row"><button type="button" class="btn btn-danger btn-block" data-report>Denunciar aviso</button></div>`}
       <div class="sticky-cta">
-        <a class="btn btn-wa" data-stat="whatsapp" target="_blank" rel="noopener noreferrer" href="${esc(waLink(listing.whatsapp, listingWaText(listing)))}">Consultar por WhatsApp</a>
+        <a class="btn btn-wa" data-stat="whatsapp" target="_blank" rel="noopener noreferrer" href="${esc(waLink(listing.whatsapp, listingWaText(listing)))}">${icon("wa")} Consultar por WhatsApp</a>
       </div>
       ${mine ? "" : `<div class="sheet-back" data-close-report hidden></div>
       <form class="sheet" data-report-form hidden>
@@ -99,6 +102,17 @@ export async function renderDetail(view, route, session) {
       ${shareFallbackHtml({ title: listing.title, text: shareText, url: shareUrl })}
     </article>`;
 
+  const track = view.querySelector(".gallery-track");
+  const dots = [...view.querySelectorAll(".dots i")];
+  if (track && dots.length) {
+    track.addEventListener("scroll", () => {
+      const items = [...track.children];
+      const left = track.scrollLeft;
+      let current = 0;
+      items.forEach((item, index) => { if (item.offsetLeft - track.offsetLeft - 20 <= left + 10) current = index; });
+      dots.forEach((dot, index) => dot.classList.toggle("on", index === current));
+    }, { passive: true });
+  }
   bindShare(view, {
     title: listing.title,
     text: shareText,
@@ -165,4 +179,16 @@ export async function renderDetail(view, route, session) {
       }
     });
   }
+}
+
+function priceHtml(listing) {
+  const label = priceLabel(listing);
+  const venue = isVenue(listing.type);
+  const offers = listing.offers || [];
+  if (venue && offers.length > 1) {
+    const unit = offers.every((offer) => /d[ií]a/i.test(offer.name)) ? "por día" : "por turno";
+    return `${esc(label)} <small>${unit}</small>`;
+  }
+  const match = /^(.*) \/ (.+)$/.exec(label);
+  return match ? `${esc(match[1])} <small>por ${esc(match[2])}</small>` : esc(label);
 }

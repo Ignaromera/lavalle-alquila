@@ -1,3 +1,4 @@
+import { icon } from "../icons.js";
 import {
   createListing,
   ensureDemoProfile,
@@ -78,7 +79,7 @@ export async function renderPublish(view, route, session, hooks = {}) {
       <label class="field">Requisitos
         <textarea name="requirements" maxlength="500" placeholder="Garantía, depósito, contrato…">${esc(existing?.requirements || "")}</textarea>
       </label>
-      <div data-housing ${kind === "venue" ? "hidden" : ""}>
+      <div class="checks" data-housing ${kind === "venue" ? "hidden" : ""}>
         <label class="checkline"><input type="checkbox" name="pets" ${existing?.pets_allowed ? "checked" : ""} /> Acepta mascotas</label>
         <label class="checkline"><input type="checkbox" name="guarantee" ${existing ? (existing.guarantee_required ? "checked" : "") : "checked"} /> Pide garantía</label>
       </div>
@@ -103,10 +104,13 @@ export async function renderPublish(view, route, session, hooks = {}) {
         </fieldset>
         <div data-upsell></div>
       </div>
-      <label class="field">Fotos <span class="fine">hasta 6, se achican en tu teléfono</span>
-        <input name="photos" type="file" accept="image/*" multiple />
-      </label>
-      <div class="thumbs" data-thumbs></div>
+      <div class="field">
+        <span>Fotos <span class="fine">· hasta 6, se achican en tu teléfono</span></span>
+        <div class="thumbs">
+          <span class="thumbs-list" data-thumbs></span>
+          <label class="thumb thumb-add">${icon("cam")}Agregar<input class="sr-only" name="photos" type="file" accept="image/*" multiple /></label>
+        </div>
+      </div>
       <div class="field">
         <span>Ubicación en el mapa</span>
         <p class="fine">Tocá donde está la propiedad. Tiene que caer dentro de Lavalle.</p>
@@ -239,8 +243,8 @@ export async function renderPublish(view, route, session, hooks = {}) {
   const paintThumbs = () => {
     const box = form.querySelector("[data-thumbs]");
     const previews = [
-      ...kept.map((src, index) => `<button type="button" class="thumb" data-drop-kept="${index}"><img src="${esc(photoUrl(src))}" alt="" /><span>Quitar</span></button>`),
-      ...files.map((file, index) => `<button type="button" class="thumb" data-drop-file="${index}"><img src="${esc(URL.createObjectURL(file))}" alt="" /><span>Quitar</span></button>`),
+      ...kept.map((src, index) => `<button type="button" class="thumb" data-drop-kept="${index}" aria-label="Quitar foto ${index + 1}"><img src="${esc(photoUrl(src))}" alt="" /><span aria-hidden="true">×</span></button>`),
+      ...files.map((file, index) => `<button type="button" class="thumb" data-drop-file="${index}" aria-label="Quitar foto nueva ${index + 1}"><img src="${esc(URL.createObjectURL(file))}" alt="" /><span aria-hidden="true">×</span></button>`),
     ];
     box.innerHTML = previews.join("");
     box.querySelectorAll("[data-drop-kept]").forEach((button) => {
