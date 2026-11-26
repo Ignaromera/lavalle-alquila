@@ -1,9 +1,3 @@
-import "@fontsource/outfit/latin-400.css";
-import "@fontsource/outfit/latin-500.css";
-import "@fontsource/outfit/latin-600.css";
-import "@fontsource/outfit/latin-700.css";
-import "@fontsource/fraunces/latin-600.css";
-import "@fontsource/fraunces/latin-700.css";
 import "./styles.css";
 import { getSession, isDemo, watchAuth } from "./api.js";
 import { onRender } from "./bus.js";
@@ -60,8 +54,7 @@ function shell(route, session) {
   return `
     <header class="topbar">
       <a class="brand" href="#/">
-        <img src="${base}favicon.svg" width="36" height="36" alt="" />
-        <span><strong>Lavalle Alquila</strong><small>Mendoza</small></span>
+        <img src="${base}brand/lavalle-alquila-linea.svg" width="193" height="30" alt="Lavalle Alquila" />
       </a>
       <a class="who" href="#/cuenta">${name ? esc(name) : "Entrar"}</a>
     </header>

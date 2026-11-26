@@ -26,3 +26,11 @@ Está todo en [SETUP.md](SETUP.md): proyecto gratis de Supabase, SQL, login por 
 - Tres denuncias ocultan el aviso. Hay una vista de moderación.
 - «Busco alquiler», con el mismo vencimiento.
 - Quinchos y salones, con calendario de turnos. El aviso es gratis; el turnero es un extra que se prende con un flag (`booking_enabled` / `plan`) y todavía no se cobra.
+
+## Marca
+
+Los archivos del logo están en `public/brand/` (marca, versión horizontal, en una línea y apilada; claras y oscuras; los textos ya están pasados a trazos). Los íconos de la app (`favicon.svg`, `favicon-32.png`, `apple-touch-icon.png`, `icon-192.png`, `icon-512.png`, `icon-maskable-512.png`) y `og-image.png` están en `public/`.
+
+- Paleta: Naranja `#FC6F20`, Crema adobe `#FEE8D0`, Papel `#FFF8F0`, Carbón `#323232`, Arena `#EBD4B8`, Mostaza `#D9A51E` (destacado), Ladrillo `#9E2B25` (alertas), Naranja profundo `#C34B0B` (texto), Verde `#1F7A44` (solo WhatsApp).
+- Tipografías: Bricolage Grotesque (títulos) e Instrument Sans (texto), ambas con licencia SIL Open Font License, servidas desde el propio sitio.
+- La silueta del departamento de Lavalle del logo se armó con datos de © OpenStreetMap contributors, licencia ODbL (https://www.openstreetmap.org/copyright).

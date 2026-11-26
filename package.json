@@ -10,8 +10,6 @@
     "test": "node --test --test-force-exit"
   },
   "dependencies": {
-    "@fontsource/fraunces": "^5.2.5",
-    "@fontsource/outfit": "^5.2.5",
     "@supabase/supabase-js": "^2.81.1",
     "leaflet": "^1.9.4"
   },

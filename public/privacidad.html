@@ -6,19 +6,28 @@
     <title>Política de privacidad · Lavalle Alquila</title>
     <meta name="description" content="Qué datos guarda Lavalle Alquila, quién es el responsable y cómo pedir que los borren." />
     <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta name="theme-color" content="#fff8f0" />
     <style>
+      @font-face { font-family: "Bricolage Grotesque"; src: url("./fonts/bricolage.woff2") format("woff2"); font-weight: 200 800; font-display: swap; }
+      @font-face { font-family: "Instrument Sans"; src: url("./fonts/instrument.woff2") format("woff2"); font-weight: 400 700; font-display: swap; }
       :root { color-scheme: light; }
-      body { margin: 0; font-family: "Segoe UI", sans-serif; background: #f3eee4; color: #1c1712; line-height: 1.5; }
-      main { max-width: 42rem; margin: 0 auto; padding: 24px 16px 48px; }
-      a { color: #2c5b45; }
-      h1 { font-family: Georgia, serif; font-size: 1.8rem; line-height: 1.15; }
-      h2 { font-family: Georgia, serif; font-size: 1.2rem; margin-top: 1.6rem; }
-      .nav { display: flex; gap: 16px; flex-wrap: wrap; }
+      body { margin: 0; font-family: "Instrument Sans", system-ui, "Segoe UI", sans-serif; background: #fff8f0; color: #323232; line-height: 1.55; font-size: 16.5px; }
+      main { max-width: 42rem; margin: 0 auto; padding: 20px 20px 48px; }
+      a { color: #c34b0b; }
+      .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 6px 0 18px; border-bottom: 1px solid #ebdcc7; margin-bottom: 8px; }
+      .top img { display: block; height: 30px; width: auto; }
+      h1, h2 { font-family: "Bricolage Grotesque", system-ui, sans-serif; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; }
+      h1 { font-size: 2.2rem; margin: 26px 0 14px; }
+      h1::before { content: ""; display: block; width: 34px; height: 15px; margin-bottom: 12px; background: linear-gradient(#fc6f20, #fc6f20) 0 0/34px 3px no-repeat, linear-gradient(#d9a51e, #d9a51e) 0 6px/22px 3px no-repeat, linear-gradient(#9e2b25, #9e2b25) 0 12px/12px 3px no-repeat; }
+      h2 { font-size: 1.35rem; margin-top: 1.8rem; }
+      .nav { display: flex; gap: 16px; flex-wrap: wrap; margin: 0; font-weight: 600; }
+      .credit { margin-top: 2.4rem; padding-top: 14px; border-top: 1px solid #ebdcc7; font-size: 0.86rem; color: #645b52; }
     </style>
   </head>
   <body>
     <main>
-      <p class="nav"><a href="./">Inicio</a> <a href="./terminos.html">Términos y condiciones</a></p>
+      <div class="top"><a href="./" aria-label="Lavalle Alquila, inicio"><img src="./brand/lavalle-alquila-linea.svg" width="193" height="30" alt="Lavalle Alquila" /></a><p class="nav"><a href="./">Inicio</a> <a href="./terminos.html">Términos y condiciones</a></p></div>
       <h1>Política de privacidad</h1>
       <p>Lavalle Alquila es un tablón vecinal y gratuito de alquileres en Lavalle, Mendoza. Esta página dice qué datos se guardan y quién responde por ellos.</p>
       <p>Responsable: Ignacio Romera. Contacto: <a href="mailto:jirfcarp@gmail.com">jirfcarp@gmail.com</a>.</p>
@@ -52,6 +61,7 @@
 
       <h2>Cambios</h2>
       <p>Si esta política cambia, se actualiza esta página. Vigente desde noviembre de 2026.</p>
+      <p class="credit">Logo: la silueta del departamento de Lavalle sale de datos de © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (licencia ODbL).</p>
     </main>
   </body>
 </html>

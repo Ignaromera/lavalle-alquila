@@ -1,12 +1,12 @@
 import { CENTER, LAVALLE_LATLNG } from "./geo.js";
 
 const COLORS = {
-  casa: "#2c5b45",
-  departamento: "#3e7c8a",
-  local: "#c4552a",
-  terreno: "#8a6a32",
-  quincho: "#8e3f28",
-  salon: "#17372a",
+  casa: "#c34b0b",
+  departamento: "#323232",
+  local: "#fc6f20",
+  terreno: "#b8860b",
+  quincho: "#9e2b25",
+  salon: "#6b5d4f",
 };
 
 function pinIcon(L, type) {
@@ -36,10 +36,10 @@ export async function mountMap(el, options = {}) {
 
   if (options.polygon) {
     L.polygon(LAVALLE_LATLNG, {
-      color: "#2c5b45",
+      color: "#c34b0b",
       weight: 2,
       opacity: 0.8,
-      fillColor: "#2c5b45",
+      fillColor: "#c34b0b",
       fillOpacity: 0.05,
       dashArray: "5 6",
     }).addTo(map);
