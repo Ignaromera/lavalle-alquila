@@ -19,7 +19,7 @@ export const config = {
    * funciones desplegadas). Hasta entonces el plan gratis conserva las estadísticas
    * que ya tenía y el botón «Suscribirme» avisa que los pagos llegan pronto.
    */
-  billingLive: false,
+  billingLive: true,
 };
 
 export function isConfigured() {
