@@ -54,14 +54,14 @@ async function renderCatalog(view, route, config) {
     ${config.kind === "housing" ? `<div class="quick">
       <a href="#/quinchos">Quinchos y salones</a>
     </div>` : `<div class="quick"><a href="#/">Volver a alquileres</a></div>`}
-    <aside class="seek-cta" data-testid="seek-cta">
+    ${listings.length ? `<aside class="seek-cta" data-testid="seek-cta">
       <h2>¿No encontrás lo que buscás?</h2>
       <p>Contanos qué necesitás y que los dueños te escriban.</p>
       <p class="seek-cta-actions">
         <a class="btn btn-primary" href="#/busco/nuevo">Publicar lo que busco</a>
         <a class="seek-cta-link" href="#/busco">Ver búsquedas</a>
       </p>
-    </aside>
+    </aside>` : ""}
     <p class="result-count">${listings.length} aviso${listings.length === 1 ? "" : "s"}</p>
     <div class="cards" data-testid="${config.testid}">
       ${listings.length ? listings.map(listingCard).join("") : `<div class="empty" data-testid="empty-results">

@@ -78,6 +78,7 @@ test("si un filtro no da avisos, ofrece publicar lo que se busca con los datos p
     await renderHome(view, { parts: [], params, name: "home" });
     const empty = view.querySelector("[data-testid=empty-results]");
     assert.ok(empty, "tiene que aparecer el estado vacío");
+    assert.equal(view.querySelector("[data-testid=seek-cta]"), null, "la tarjeta general no tiene que tapar el ofrecimiento");
     assert.match(empty.textContent, /Ningún aviso coincide/);
     const cta = empty.querySelector(".btn-primary");
     assert.equal(cta.textContent.trim(), "Publicá lo que buscás");
