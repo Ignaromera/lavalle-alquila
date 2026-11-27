@@ -105,10 +105,31 @@ test("después de registrarse se muestra el aviso de confirmar el mail, con reen
   win.happyDOM.close();
 });
 
-test("el encabezado sin sesión dice Entrar / Crear cuenta", () => {
+test("el encabezado dice Entrar / Crear cuenta sin sesión y Mi cuenta con sesión", () => {
   assert.equal(headerAccountLabel(""), "Entrar / Crear cuenta");
   assert.equal(headerAccountLabel(null), "Entrar / Crear cuenta");
-  assert.equal(headerAccountLabel("Ignacio"), "Ignacio");
+  assert.equal(headerAccountLabel(undefined), "Entrar / Crear cuenta");
+  assert.equal(headerAccountLabel({ user: { id: "1" } }), "Mi cuenta");
+});
+
+test("mi cuenta muestra Cerrar sesión arriba, junto al saludo, y también abajo", async () => {
+  const win = installDom();
+  const api = await import("../src/api.js");
+  const session = await api.signInDemo(api.DEMO_LOGIN[0].id);
+  const { renderAccount } = await import("../src/pages/account.js");
+  const view = document.createElement("div");
+  document.body.append(view);
+  await renderAccount(view, { parts: ["cuenta"], params: new URLSearchParams(), name: "account" }, session);
+  const top = view.querySelector("[data-testid=logout-top]");
+  const bottom = view.querySelector("[data-testid=logout-bottom]");
+  assert.ok(top, "tiene que haber un Cerrar sesión arriba, junto al saludo");
+  assert.ok(bottom, "el de abajo también tiene que seguir");
+  assert.equal(top.textContent, "Cerrar sesión");
+  assert.equal(bottom.textContent, "Cerrar sesión");
+  assert.equal(view.querySelectorAll("[data-logout]").length, 2);
+  assert.match(view.querySelector(".account-welcome").textContent, /Hola,/);
+  assert.equal(view.textContent.includes("Salir"), false);
+  win.happyDOM.close();
 });
 
 test("el formulario de contraseña nueva aparece en la cuenta cuando hay que crearla", () => {

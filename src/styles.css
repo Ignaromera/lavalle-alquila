@@ -55,6 +55,9 @@ p { margin: 0; }
 .page-head h1::before { content: ""; display: block; width: 34px; height: 15px; margin-bottom: 14px;
   background: linear-gradient(var(--orange), var(--orange)) 0 0/34px 3px no-repeat, linear-gradient(var(--mustard), var(--mustard)) 0 6px/22px 3px no-repeat, linear-gradient(var(--brick), var(--brick)) 0 12px/12px 3px no-repeat; }
 .page-head p { margin-top: 10px; }
+.account-welcome { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.account-welcome h1 { flex: 1; min-width: 0; }
+.account-welcome .btn { flex: none; margin-top: 2px; }
 .lede { margin-top: 10px; color: var(--muted); font-size: 16.5px; max-width: 34ch; }
 .muted, .fine { color: var(--muted); }
 .fine { font-size: 13.5px; margin-top: 7px; font-weight: 400; }

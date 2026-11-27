@@ -16,7 +16,6 @@ import { renderSeek, renderSeekNew, renderSeeks } from "./pages/seeks.js";
 import { bindPublishChoice, publishChoiceHtml } from "./publish-choice.js";
 import { renderSubscription } from "./pages/subscription.js";
 import { appendLegalFooter, headerAccountLabel, sessionEmail } from "./pages/auth-ui.js";
-import { givenName } from "./format.js";
 import { resetPageMeta } from "./meta.js";
 import { parseRoute } from "./router.js";
 
@@ -60,7 +59,6 @@ const app = document.querySelector("#app");
 
 function shell(route, session) {
   const base = import.meta.env.BASE_URL;
-  const name = givenName(session?.profile?.full_name);
   const tab = (id, href, label, glyph) => {
     const on = route.name === id
       || (id === "account" && (route.name === "plans" || route.name === "subscription"))
@@ -76,7 +74,7 @@ function shell(route, session) {
         <img src="${base}brand/lavalle-alquila-marca.svg" width="30" height="24" alt="" />
         <span class="wm-text">Lavalle Alquila <small>Mendoza</small></span>
       </a>
-      <a class="who" href="#/cuenta" data-testid="header-auth">${esc(headerAccountLabel(name))}</a>
+      <a class="who" href="#/cuenta" data-testid="header-auth">${esc(headerAccountLabel(session))}</a>
     </header>
     ${isDemo() ? demoBannerHtml() : ""}
     <main id="view" class="view"><p class="fine">Cargando…</p></main>

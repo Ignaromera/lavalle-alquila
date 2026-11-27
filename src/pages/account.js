@@ -68,8 +68,13 @@ export async function renderAccount(view, route, session) {
   const showStats = plan.stats || !config.billingLive;
   view.innerHTML = `
     <section class="page-head">
-      <h1 tabindex="-1">Hola, ${esc(givenName(session.profile.full_name) || "vecino")}</h1>
-      <p class="lede">${esc(session.profile.email || "")}</p>
+      <div class="account-welcome">
+        <div>
+          <h1 tabindex="-1">Hola, ${esc(givenName(session.profile.full_name) || "vecino")}</h1>
+          <p class="lede">${esc(session.profile.email || "")}</p>
+        </div>
+        <button type="button" class="btn btn-ghost btn-small" data-logout data-testid="logout-top">Cerrar sesión</button>
+      </div>
     </section>
     ${isDemo() ? demoNoticeHtml() : ""}
     <p class="plan-note" data-testid="plan-note">Plan <strong>${esc(plan.name)}</strong> · ${esc(note.text)} ${note.cta ? `${esc(note.cta)} ` : ""}${turnero ? "El turnero está habilitado en tus quinchos y salones. " : ""}<a href="#/${plan.id === "free" ? "planes" : "suscripcion"}">${plan.id === "free" ? "Ver planes" : "Mi suscripción"}</a></p>
@@ -96,7 +101,7 @@ export async function renderAccount(view, route, session) {
     <div class="stack">${seeks.length ? seeks.map(seekOwnerCard).join("") : `<p class="muted">No tenés búsquedas publicadas.</p>`}</div>
     <div class="stack footer-links">
       ${canModerate(session) ? `<a class="btn btn-ghost" href="#/admin">${isDemo() ? "Moderación de ejemplo" : "Moderación"}</a>` : ""}
-      <button type="button" class="btn btn-ghost" data-logout>Salir</button>
+      <button type="button" class="btn btn-ghost" data-logout data-testid="logout-bottom">Cerrar sesión</button>
     </div>
     ${legalLinksHtml(sessionEmail(session))}`;
 
@@ -116,10 +121,12 @@ export async function renderAccount(view, route, session) {
   bindListingActions(view);
   bindSeekActions(view);
   bindRequestActions(view, session);
-  view.querySelector("[data-logout]").addEventListener("click", async () => {
-    await signOut();
-    toast("Cerraste la sesión.");
-    render();
+  view.querySelectorAll("[data-logout]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await signOut();
+      toast("Cerraste la sesión.");
+      render();
+    });
   });
   void route;
 }

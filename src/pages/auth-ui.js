@@ -18,8 +18,8 @@ export function sessionEmail(session) {
   return String(session?.user?.email || session?.profile?.email || "").trim();
 }
 
-export function headerAccountLabel(name) {
-  return name || "Entrar / Crear cuenta";
+export function headerAccountLabel(session) {
+  return session ? "Mi cuenta" : "Entrar / Crear cuenta";
 }
 
 export function regretMailto(email = "") {
