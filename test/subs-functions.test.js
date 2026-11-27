@@ -32,6 +32,7 @@ function makeWorld({ token = "APP_USR-test", env = {} } = {}) {
     mpPayments: {},
     nextMp: 1,
     mpFail: false,
+    mpMe: { id: 99, nickname: "LAVALLEALQUILA", email: "jirfcarp@gmail.com", site_id: "MLA" },
     tokens: { "tok-user": { id: USER, email: "ana@example.com" } },
     n: 0,
   };
@@ -89,6 +90,7 @@ function makeWorld({ token = "APP_USR-test", env = {} } = {}) {
     }
     if (u.origin === "https://api.mercadopago.com") {
       w.mpCalls.push({ method, path: u.pathname, body, headers: init.headers });
+      if (method === "GET" && u.pathname === "/users/me") return ok(w.mpMe);
       if (method === "POST" && u.pathname === "/preapproval") {
         if (w.mpFail) return ok({ message: "invalid" }, 400);
         const id = `mp-${w.nextMp++}`;
@@ -111,6 +113,19 @@ const post = (url, body, headers = {}) => new Request(url, { method: "POST", hea
 const asUser = (body) => post(`${SUPA}/functions/v1/crear-suscripcion`, body, { authorization: "Bearer tok-user", origin: "https://lavallealquila.com.ar" });
 
 // --------------------------------------------------------------- crear-suscripcion
+
+test("crear-suscripcion: con vendedor de prueba manda el comprador de prueba como payer_email", async () => {
+  const { createHandler } = await load("crear-suscripcion");
+  const w = makeWorld({ token: "APP_USR-sandbox-1" });
+  w.mpMe = { id: 3877273703, nickname: "TESTUSER2708339700671090537", email: "test_user_2708339700671090537@testuser.com" };
+  const res = await createHandler(w.deps)(asUser({ plan: "pro", interval: "month" }));
+  assert.equal(res.status, 200);
+  const call = w.mpCalls.find((c) => c.method === "POST" && c.path === "/preapproval");
+  assert.equal(call.body.payer_email, "test_user_2612355665340004312@testuser.com");
+  const w2 = makeWorld({ token: "TEST-abc", env: { MP_TEST_PAYER_EMAIL: "test_user_1@testuser.com" } });
+  await createHandler(w2.deps)(asUser({ plan: "pro", interval: "month" }));
+  assert.equal(w2.mpCalls.find((c) => c.path === "/preapproval").body.payer_email, "test_user_1@testuser.com");
+});
 
 test("crear-suscripcion: sin MP_ACCESS_TOKEN responde «próximamente» y no rompe", async () => {
   const { createHandler } = await load("crear-suscripcion");

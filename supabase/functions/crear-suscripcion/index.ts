@@ -4,6 +4,10 @@
 //   {action:"create", plan:"plus"|"pro", interval:"month"|"year"}  → devuelve {init_point} de Mercado Pago
 //   {action:"cancel"}                                              → cancela la suscripción vigente
 // Secrets necesarios: MP_ACCESS_TOKEN (Mercado Pago, credencial de producción).
+// Opcional, solo para probar en sandbox: MP_TEST_PAYER_EMAIL (email del comprador de prueba,
+// test_user_<n>@testuser.com). En sandbox Mercado Pago exige que pagador y vendedor sean ambos
+// usuarios de prueba («Both payer and collector must be real or test users»), así que si el
+// vendedor del token es de prueba se manda ese email en vez del de la cuenta real del usuario.
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY los inyecta Supabase solo.
 // Desplegar SIN verificación de JWT: la función valida la sesión por su cuenta.
 //
@@ -15,6 +19,35 @@ const SITE = "https://lavallealquila.com.ar";
 const MP = "https://api.mercadopago.com";
 const ORIGINS = [SITE, "http://localhost:5173", "http://localhost:4173", "http://127.0.0.1:4173"];
 const PLAN_NAMES = { plus: "Plus", pro: "Pro" };
+// Comprador de prueba de Mercado Pago (TESTUSER2612355665340004312). No es un dato sensible:
+// solo sirve en sandbox y se puede pisar con el secret MP_TEST_PAYER_EMAIL.
+const DEFAULT_TEST_PAYER = "test_user_2612355665340004312@testuser.com";
+
+// ¿El token es de un vendedor de prueba? Las credenciales de un usuario de prueba empiezan con
+// APP_USR- igual que las reales, así que se pregunta a /users/me (una vez por instancia).
+const sandboxCache = new Map();
+async function isSandbox(deps, token) {
+  if (/^TEST-/.test(token)) return true;
+  if (String(deps.env("MP_SANDBOX") || "").toLowerCase() === "true") return true;
+  if (sandboxCache.has(token)) return sandboxCache.get(token);
+  let test = false;
+  try {
+    const me = await mp(deps, token, "GET", "/users/me");
+    const d = (me.ok && me.data) || {};
+    test = /^TESTUSER/i.test(String(d.nickname || "")) || /@testuser\.com$/i.test(String(d.email || ""));
+    if (me.ok) sandboxCache.set(token, test);
+  } catch (e) {
+    console.error("No se pudo consultar /users/me de Mercado Pago", e && e.message ? e.message : e);
+  }
+  return test;
+}
+
+async function payerEmailFor(deps, token, userEmail) {
+  if (!(await isSandbox(deps, token))) return userEmail;
+  const testEmail = String(deps.env("MP_TEST_PAYER_EMAIL") || "").trim() || DEFAULT_TEST_PAYER;
+  console.log("Mercado Pago en modo prueba: payer_email =", testEmail);
+  return testEmail;
+}
 
 function corsHeaders(req) {
   const origin = req.headers.get("origin") || "";
@@ -140,10 +173,11 @@ async function createSubscription(deps, req, user, input, token) {
     status: "pending",
   });
   const sub = inserted[0];
-  const body = buildPreapproval({ sub, plan, interval, amount, email: user.email, supabaseUrl: deps.env("SUPABASE_URL") });
+  const email = await payerEmailFor(deps, token, user.email);
+  const body = buildPreapproval({ sub, plan, interval, amount, email, supabaseUrl: deps.env("SUPABASE_URL") });
   const made = await mp(deps, token, "POST", "/preapproval", body, sub.id);
   if (!made.ok || !made.data || !made.data.init_point) {
-    console.error("Mercado Pago no creó la suscripción", made.status, JSON.stringify(made.data).slice(0, 500));
+    console.error("Mercado Pago no creó la suscripción", made.status, JSON.stringify(made.data).slice(0, 1000), "body enviado:", JSON.stringify(body));
     await db.remove(`subscriptions?id=eq.${sub.id}`).catch(() => {});
     return reply(req, { code: "mp_error", message: "No pudimos abrir el pago. Probá de nuevo en un rato." }, 502);
   }
