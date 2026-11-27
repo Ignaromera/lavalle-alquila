@@ -5,10 +5,41 @@ import { demoNoticeHtml } from "../demo-ui.js";
 import { authBoxHtml, bindAuth, demoLoginsHtml } from "./auth-ui.js";
 import { DEMO_LOGIN } from "../api.js";
 import { esc, formatArs, formatWhen, parseMoney, seekWaText, typeLabel, waLink } from "../format.js";
-import { HOUSING_TYPES, VENUE_TYPES } from "../geo.js";
+import { DISTRICT_NAMES, HOUSING_TYPES, VENUE_TYPES } from "../geo.js";
 import { setPageMeta } from "../meta.js";
 import { bindShare, seekUrl, shareFallbackHtml } from "../share.js";
 import { toast } from "../toast.js";
+
+
+const SEEK_TYPE_IDS = new Set([
+  "cualquiera",
+  ...HOUSING_TYPES.map((type) => type.id),
+  ...VENUE_TYPES.map((type) => type.id),
+]);
+
+/** Lee tipo, distrito y presupuesto desde la URL de #/busco/nuevo. */
+export function seekDefaultsFromParams(params) {
+  const rawType = String(params?.get?.("tipo") || "");
+  const rawDistrict = String(params?.get?.("distrito") || "");
+  const budget = String(params?.get?.("max") || params?.get?.("presupuesto") || "").replace(/\D/g, "");
+  return {
+    type: SEEK_TYPE_IDS.has(rawType) ? rawType : "cualquiera",
+    district: DISTRICT_NAMES.includes(rawDistrict) ? rawDistrict : "",
+    budget,
+  };
+}
+
+/** Arma #/busco/nuevo con los filtros del listado (tipo, distrito, precio máximo). */
+export function seekNewHref(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.type) params.set("tipo", filters.type);
+  if (filters.district) params.set("distrito", filters.district);
+  const budget = filters.maxPrice || filters.budget;
+  if (budget) params.set("max", String(budget).replace(/\D/g, ""));
+  const query = params.toString();
+  return query ? `#/busco/nuevo?${query}` : "#/busco/nuevo";
+}
+
 
 export async function renderSeeks(view) {
   const seeks = await listSeeks();
@@ -68,6 +99,7 @@ export async function renderSeek(view, route) {
 
 export async function renderSeekNew(view, route, session) {
   const ready = !!(session?.profile.full_name && session?.profile.whatsapp);
+  const defaults = seekDefaultsFromParams(route?.params);
   view.innerHTML = `
     <section class="page-head">
       <h1 tabindex="-1">Qué estás buscando</h1>
@@ -81,21 +113,25 @@ export async function renderSeekNew(view, route, session) {
         <label class="field">WhatsApp<input name="whatsapp" required inputmode="tel" placeholder="2615551234" value="${esc(session?.profile.whatsapp || "")}" /></label>`}
       <label class="field">Busco
         <select name="type">
-          <option value="cualquiera">Cualquier cosa</option>
-          ${[...HOUSING_TYPES, ...VENUE_TYPES].map((type) => `<option value="${type.id}">${type.label}</option>`).join("")}
+          <option value="cualquiera"${defaults.type === "cualquiera" ? " selected" : ""}>Cualquier cosa</option>
+          ${[...HOUSING_TYPES, ...VENUE_TYPES].map((type) => `<option value="${type.id}"${defaults.type === type.id ? " selected" : ""}>${type.label}</option>`).join("")}
         </select>
       </label>
       <label class="field">Distrito
-        <select name="district">${districtOptions("", "Cualquier distrito de Lavalle")}</select>
+        <select name="district">${districtOptions(defaults.district, "Cualquier distrito de Lavalle")}</select>
       </label>
       <label class="field">Presupuesto por mes
-        <input name="budget" inputmode="numeric" required placeholder="400000" />
+        <input name="budget" inputmode="numeric" required placeholder="400000" value="${esc(defaults.budget)}" />
       </label>
       <label class="field">Nota
         <textarea name="note" required maxlength="500" placeholder="Familia, mascota, desde cuándo…"></textarea>
       </label>
       <button class="btn btn-primary" type="submit">Publicar búsqueda</button>
     </form>`;
+  const form = view.querySelector("[data-testid=seek-form]");
+  form.elements.type.value = defaults.type;
+  form.elements.district.value = defaults.district;
+  if (defaults.budget) form.elements.budget.value = defaults.budget;
   bindAuth(view, () => render());
   view.querySelectorAll("[data-demo]").forEach((button) => {
     button.addEventListener("click", async () => {

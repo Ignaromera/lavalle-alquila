@@ -12,6 +12,7 @@ import { renderMap } from "./pages/map.js";
 import { renderPlans } from "./pages/plans.js";
 import { renderPublish } from "./pages/publish.js";
 import { renderSeek, renderSeekNew, renderSeeks } from "./pages/seeks.js";
+import { bindPublishChoice, publishChoiceHtml } from "./publish-choice.js";
 import { renderSubscription } from "./pages/subscription.js";
 import { givenName } from "./format.js";
 import { resetPageMeta } from "./meta.js";
@@ -55,8 +56,13 @@ function shell(route, session) {
   const base = import.meta.env.BASE_URL;
   const name = givenName(session?.profile?.full_name);
   const tab = (id, href, label, glyph) => {
-    const on = route.name === id || (id === "account" && (route.name === "plans" || route.name === "subscription"));
-    return `<a class="tab${on ? " is-on" : ""}${glyph === "plus" ? " tab-plus" : ""}" href="${href}" ${on ? 'aria-current="page"' : ""}>${icon(glyph)}<span>${label}</span></a>`;
+    const on = route.name === id
+      || (id === "account" && (route.name === "plans" || route.name === "subscription"))
+      || (id === "publish" && route.name === "seek-new");
+    if (id === "publish") {
+      return `<button type="button" class="tab tab-plus${on ? " is-on" : ""}" data-open-publish data-testid="tab-publish" aria-haspopup="dialog" aria-expanded="false" aria-controls="publish-choice">${icon(glyph)}<span>${label}</span></button>`;
+    }
+    return `<a class="tab${on ? " is-on" : ""}" href="${href}" ${on ? 'aria-current="page"' : ""}>${icon(glyph)}<span>${label}</span></a>`;
   };
   return `
     <header class="topbar">
@@ -74,7 +80,8 @@ function shell(route, session) {
       ${tab("publish", "#/publicar", "Publicar", "plus")}
       ${tab("venues", "#/quinchos", "Quinchos", "grill")}
       ${tab("account", "#/cuenta", "Yo", "user")}
-    </nav>`;
+    </nav>
+    ${publishChoiceHtml()}`;
 }
 
 function esc(value) {
@@ -99,6 +106,7 @@ async function renderOnce({ scroll = true } = {}) {
     console.warn(error);
   }
   app.innerHTML = shell(route, session);
+  bindPublishChoice(app);
   const view = document.querySelector("#view");
   const page = routes[route.name] || renderHome;
   try {

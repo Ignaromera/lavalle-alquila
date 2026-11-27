@@ -94,6 +94,12 @@ h3 { font-size: 19px; margin: 0 0 6px; }
 .row { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
 .quick { display: flex; gap: 18px; margin: 16px 0 0; font-weight: 600; font-size: 15px; flex-wrap: wrap; }
 .quick a { text-decoration: none; border-bottom: 2px solid var(--orange); padding-bottom: 2px; }
+.seek-cta { margin: 20px 0 0; padding: 20px 18px 18px; border-radius: var(--r-card); background: var(--cream); }
+.seek-cta h2 { margin: 0 0 8px; font-size: 24px; }
+.seek-cta p { color: var(--ink); }
+.seek-cta-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 18px; margin-top: 16px; }
+.seek-cta-link { font-weight: 700; text-decoration: none; border-bottom: 2px solid var(--orange); padding-bottom: 2px; }
+.empty-actions { margin-top: 14px; }
 .result-count { margin: 22px 0 12px; font-size: 13px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
 
 /* tarjetas: foto grande con el texto encima */
@@ -131,6 +137,7 @@ h3 { font-size: 19px; margin: 0 0 6px; }
 .tab-plus { color: var(--ink); }
 .tab-plus .ico { background: var(--orange); color: var(--ink); border-radius: 50%; padding: 5px; width: 34px; height: 34px; margin-top: -2px; }
 .tab-plus.is-on::before { display: none; }
+button.tab { appearance: none; background: transparent; border: 0; width: 100%; cursor: pointer; }
 
 /* ficha */
 .back { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 14.5px; text-decoration: none; padding: 6px 0 12px; }
@@ -278,7 +285,8 @@ form .btn-primary.btn-block[type=submit] { margin-top: 28px; }
 .legend .bar-view, .legend .bar-share, .legend .bar-wa { width: 10px; height: 10px; border-radius: 50%; min-height: 0; display: inline-block; }
 .stat-nums { display: flex; flex-wrap: wrap; gap: 8px 12px; color: var(--muted); font-weight: 600; margin: 0; }
 
-/* hoja inferior (filtros, denuncia) */
+/* hoja inferior (filtros, denuncia, publicar) */
+body.sheet-open { overflow: hidden; }
 .sheet-back { display: none; position: fixed; inset: 0; background: rgba(50,50,50,.45); z-index: 55; }
 .sheet-back:not([hidden]) { display: block; }
 .sheet { display: none; position: fixed; z-index: 60; left: 50%; bottom: 0; transform: translateX(-50%); width: min(640px, 100%); max-height: min(86vh, 720px); overflow: auto; background: var(--paper); border-radius: var(--r-card) var(--r-card) 0 0; padding: 8px 20px calc(20px + env(safe-area-inset-bottom)); box-shadow: 0 -10px 40px rgba(0,0,0,.15); }
@@ -288,6 +296,11 @@ form .btn-primary.btn-block[type=submit] { margin-top: 28px; }
 .sheet-actions { margin-top: 18px; }
 .sheet-actions .btn { flex: 1; }
 .sheet-grab { width: 42px; height: 4px; border-radius: 99px; background: var(--sand); margin: 6px auto 4px; }
+.choice-list { display: flex; flex-direction: column; gap: 10px; margin: 16px 0 10px; }
+.choice { display: block; text-decoration: none; padding: 18px; border-radius: var(--r-sm); background: var(--cream); border: 1.5px solid transparent; min-height: 72px; }
+.choice:hover, .choice:focus-visible { border-color: var(--orange); }
+.choice-title { display: block; font-family: var(--head); font-weight: 700; font-size: 20px; letter-spacing: -.02em; }
+.choice small { display: block; margin-top: 4px; color: var(--muted); font-weight: 500; font-size: 14.5px; }
 
 .toast { position: fixed; z-index: 80; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(520px, calc(100% - 24px)); background: var(--ink); color: var(--paper); padding: 14px 16px; border-radius: var(--r-sm); font-weight: 600; }
 .toast[hidden] { display: none; }

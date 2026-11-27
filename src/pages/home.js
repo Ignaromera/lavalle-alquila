@@ -6,6 +6,7 @@ import { esc } from "../format.js";
 import { icon } from "../icons.js";
 import { HOUSING_TYPES, VENUE_TYPES } from "../geo.js";
 import { navigate } from "../router.js";
+import { seekNewHref } from "./seeks.js";
 
 export async function renderHome(view, route) {
   await renderCatalog(view, route, {
@@ -52,11 +53,21 @@ async function renderCatalog(view, route, config) {
     </div>
     ${config.kind === "housing" ? `<div class="quick">
       <a href="#/quinchos">Quinchos y salones</a>
-      <a href="#/busco">Busco alquiler</a>
-    </div>` : `<div class="quick"><a href="#/">Volver a alquileres</a><a href="#/busco">Busco alquiler</a></div>`}
+    </div>` : `<div class="quick"><a href="#/">Volver a alquileres</a></div>`}
+    <aside class="seek-cta" data-testid="seek-cta">
+      <h2>¿No encontrás lo que buscás?</h2>
+      <p>Contanos qué necesitás y que los dueños te escriban.</p>
+      <p class="seek-cta-actions">
+        <a class="btn btn-primary" href="#/busco/nuevo">Publicar lo que busco</a>
+        <a class="seek-cta-link" href="#/busco">Ver búsquedas</a>
+      </p>
+    </aside>
     <p class="result-count">${listings.length} aviso${listings.length === 1 ? "" : "s"}</p>
     <div class="cards" data-testid="${config.testid}">
-      ${listings.length ? listings.map(listingCard).join("") : `<p class="empty">Ningún aviso coincide con esos filtros. Probá ampliar la búsqueda.</p>`}
+      ${listings.length ? listings.map(listingCard).join("") : `<div class="empty" data-testid="empty-results">
+        <p>Ningún aviso coincide con esos filtros. Probá ampliar la búsqueda.</p>
+        <p class="empty-actions"><a class="btn btn-primary" href="${esc(seekNewHref(filters))}">Publicá lo que buscás</a></p>
+      </div>`}
     </div>
     <p class="safety-inline">Nunca pagues una seña sin ver la propiedad.</p>
     <div class="sheet-back" data-close-filters hidden></div>
