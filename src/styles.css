@@ -192,8 +192,11 @@ button.tab { appearance: none; background: transparent; border: 0; width: 100%; 
 .gallery-btn-next { right: 28px; }
 .gallery-btn-next .ico { transform: scaleX(-1); }
 .gallery-btn:hover { background: #fff; }
-@media (hover: hover) and (pointer: fine) and (min-width: 701px) {
+@media (min-width: 701px) {
   .gallery.has-many .gallery-btn { display: grid; }
+}
+@media (hover: none) and (pointer: coarse) {
+  .gallery.has-many .gallery-btn { display: none; }
 }
 .gallery-count {
   position: absolute;
