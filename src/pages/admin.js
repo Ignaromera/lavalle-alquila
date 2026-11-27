@@ -58,7 +58,7 @@ function adminCard(listing) {
   return `<article class="owner-card">
     <p class="eyebrow">${esc(typeLabel(listing.type))} · ${esc(listing.status)}${listing.report_count ? ` · ${listing.report_count} denuncia${listing.report_count === 1 ? "" : "s"}` : ""}</p>
     <h3><a href="#/aviso/${esc(listing.id)}">${esc(listing.title)}</a></h3>
-    <p class="fine">${esc(listing.owner_name || "")} · ${esc(listing.district)}</p>
+    <p class="fine">${ownerLink(listing)} · ${esc(listing.district)}</p>
     ${reports ? `<ul class="fine">${reports}</ul>` : ""}
     <div class="row-actions">
       ${listing.status === "hidden" ? `<button type="button" class="btn btn-small" data-restore="${esc(listing.id)}">Restaurar</button>` : ""}
@@ -77,4 +77,10 @@ async function run(fn, ok) {
   } catch (error) {
     toast(error.message);
   }
+}
+
+function ownerLink(listing) {
+  const name = listing.owner_name || "Un vecino de Lavalle";
+  if (!listing.owner_id) return esc(name);
+  return `<a class="admin-owner" href="#/admin/anunciante/${esc(listing.owner_id)}" data-testid="admin-advertiser">${esc(name)}</a>`;
 }

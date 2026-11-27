@@ -18,6 +18,8 @@ export function parseRoute() {
   else if (head === "cuenta") name = "account";
   else if (head === "planes") name = "plans";
   else if (head === "suscripcion") name = "subscription";
+  else if (head === "anunciante" && parts[1]) name = "advertiser";
+  else if (head === "admin" && parts[1] === "anunciante" && parts[2]) name = "advertiser-admin";
   else if (head === "admin") name = "admin";
   else if (head === "turnero" && parts[1]) name = "turnero";
   return { name, parts, params, path: `/${parts.join("/")}` };

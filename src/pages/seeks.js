@@ -1,6 +1,6 @@
 import { createSeek, deleteSeek, ensureDemoProfile, getSeek, isDemo, listSeeks, maybeTrackView, renewSeek, trackStat } from "../api.js";
 import { render } from "../bus.js";
-import { districtOptions } from "../cards.js";
+import { districtOptions, seekCard } from "../cards.js";
 import { demoNoticeHtml } from "../demo-ui.js";
 import { authBoxHtml, bindAuth, demoLoginsHtml } from "./auth-ui.js";
 import { DEMO_LOGIN } from "../api.js";
@@ -51,16 +51,7 @@ export async function renderSeeks(view) {
     ${isDemo() ? demoNoticeHtml() : ""}
     <p><a class="btn btn-primary" href="#/busco/nuevo">Publicar lo que busco</a></p>
     <div class="stack" data-testid="seeks">
-      ${seeks.length ? seeks.map((seek) => `<article class="seek">
-        <p class="eyebrow">${esc(typeLabel(seek.type))}${seek.district ? ` · ${esc(seek.district)}` : " · cualquier distrito"}</p>
-        <h2><a href="#/busco/${esc(seek.id)}">Hasta ${esc(formatArs(seek.budget_ars))}</a></h2>
-        <p>${esc(seek.note)}</p>
-        <p class="fine">${esc(seek.owner_name || "Vecino")}${seek.example ? " · ejemplo" : ""}</p>
-        <div class="row-actions">
-          <a class="btn btn-wa" data-stat="whatsapp" data-id="${esc(seek.id)}" target="_blank" rel="noopener noreferrer" href="${esc(waLink(seek.whatsapp, seekWaText(seek)))}">Escribir por WhatsApp</a>
-          <a class="btn btn-ghost" href="#/busco/${esc(seek.id)}">Compartir</a>
-        </div>
-      </article>`).join("") : `<p class="empty">Todavía no hay búsquedas. Sé la primera.</p>`}
+      ${seeks.length ? seeks.map((seek) => seekCard(seek)).join("") : `<p class="empty">Todavía no hay búsquedas. Sé la primera.</p>`}
     </div>`;
   view.querySelectorAll("[data-stat=whatsapp]").forEach((link) => {
     link.addEventListener("click", () => trackStat("seek", link.dataset.id, "whatsapp"));

@@ -6,6 +6,7 @@ import { createRenderQueue } from "./render-queue.js";
 import { icon } from "./icons.js";
 import { renderAccount, renderOwnerTurnero } from "./pages/account.js";
 import { renderAdmin } from "./pages/admin.js";
+import { renderAdvertiser } from "./pages/advertiser.js";
 import { renderDetail } from "./pages/detail.js";
 import { renderHome, renderVenues } from "./pages/home.js";
 import { renderMap } from "./pages/map.js";
@@ -32,6 +33,8 @@ const TITLES = {
   plans: "Planes",
   subscription: "Mi suscripción",
   admin: "Moderación",
+  advertiser: "Avisos del anunciante",
+  "advertiser-admin": "Avisos del anunciante",
   turnero: "Turnero",
 };
 
@@ -48,6 +51,8 @@ const routes = {
   plans: renderPlans,
   subscription: renderSubscription,
   admin: renderAdmin,
+  advertiser: renderAdvertiser,
+  "advertiser-admin": renderAdvertiser,
   turnero: renderOwnerTurnero,
 };
 

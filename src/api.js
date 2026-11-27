@@ -818,6 +818,66 @@ export async function setBookingStatus(requestId, status) {
   if (error) throw asError(error);
 }
 
+
+function sortByFeaturedDate(a, b) {
+  const featured = Number(b.featured) - Number(a.featured);
+  if (featured) return featured;
+  return new Date(b.created_at) - new Date(a.created_at);
+}
+
+export async function getAdvertiser(id, { isAdmin = false } = {}) {
+  if (!id) return null;
+  if (isDemo()) {
+    const session = await getSession();
+    return demo.getAdvertiser(mem(), id, { isAdmin: isAdmin || !!session?.profile?.is_admin });
+  }
+  const { data, error } = await getClient().rpc("advertiser_public", { p_id: id });
+  if (error) throw asError(error);
+  const row = Array.isArray(data) ? data[0] : data;
+  if (!row) return null;
+  return {
+    id: row.id,
+    full_name: row.full_name || "",
+    listing_count: Number(row.listing_count) || 0,
+    seek_count: Number(row.seek_count) || 0,
+  };
+}
+
+export async function listAdvertiserListings(id, { includePrivate = false } = {}) {
+  if (!id) return [];
+  const session = includePrivate ? await getSession() : null;
+  const elevated = includePrivate && (isDemo() || !!session?.profile?.is_admin);
+  if (isDemo()) return demo.advertiserListings(mem(), id, { includePrivate: elevated });
+  if (elevated) {
+    const { data, error } = await getClient()
+      .from("listings")
+      .select("*")
+      .eq("owner_id", id)
+      .neq("status", "deleted")
+      .order("created_at", { ascending: false });
+    if (error) throw asError(error);
+    const advertiser = await getAdvertiser(id);
+    const rows = (data || []).map((row) => normalize({
+      ...row,
+      owner_name: advertiser?.full_name || row.owner_name || "",
+    }));
+    return (await attachOffers(rows)).sort(sortByFeaturedDate);
+  }
+  const { data, error } = await getClient().from("listings_public").select("*").eq("owner_id", id);
+  if (error) throw asError(error);
+  return (data || []).map((row) => normalize(row)).sort(sortByFeaturedDate);
+}
+
+export async function listAdvertiserSeeks(id) {
+  if (!id) return [];
+  if (isDemo()) return demo.advertiserSeeks(mem(), id);
+  const { data, error } = await getClient().from("seeks_public").select("*").eq("owner_id", id);
+  if (error) throw asError(error);
+  return (data || [])
+    .map((row) => ({ ...row, example: false }))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+}
+
 export async function adminListings() {
   if (isDemo()) return demo.adminListings(mem());
   const session = await getSession();
@@ -834,10 +894,22 @@ export async function adminListings() {
     list.push(report);
     grouped.set(report.listing_id, list);
   }
-  return (listings.data || [])
+  const rows = listings.data || [];
+  const ownerIds = [...new Set(rows.map((row) => row.owner_id).filter(Boolean))];
+  const names = new Map();
+  if (ownerIds.length) {
+    const named = await getClient().rpc("advertiser_names", { p_ids: ownerIds });
+    if (named.error) throw asError(named.error);
+    for (const row of named.data || []) names.set(row.id, row.full_name || "");
+  }
+  return rows
     .map((row) => {
       const list = grouped.get(row.id) || [];
-      return { ...normalize(row), report_count: list.length, reports: list };
+      return {
+        ...normalize({ ...row, owner_name: names.get(row.owner_id) || row.owner_name || "" }),
+        report_count: list.length,
+        reports: list,
+      };
     })
     .sort((a, b) => Number(b.status === "hidden") - Number(a.status === "hidden") || b.report_count - a.report_count);
 }

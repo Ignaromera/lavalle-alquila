@@ -3,6 +3,16 @@ export function givenName(fullName) {
   return name || "";
 }
 
+export function advertiserName(fullName) {
+  const name = String(fullName || "").trim();
+  return name || "Un vecino de Lavalle";
+}
+
+export function activeListingsLabel(count) {
+  const n = Number(count) || 0;
+  return n === 1 ? "1 aviso activo" : `${n} avisos activos`;
+}
+
 export function esc(value) {
   return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
     "&": "&amp;",

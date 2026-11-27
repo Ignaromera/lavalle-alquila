@@ -1,4 +1,4 @@
-import { applyFilters } from "./filter.js";
+import { applyFilters, isPublicListing } from "./filter.js";
 import { addDays, clock, hoursLabel, isoDay, normalizeWhatsapp, plusDaysISO } from "./format.js";
 import { AMENITY_IDS, DISTRICT_NAMES, isVenue, pointInLavalle } from "./geo.js";
 import { PLANS, UNLIMITED, featuredCount, pickSubscription, planId } from "./plans.js";
@@ -943,6 +943,53 @@ function decorateRequest(store, request) {
     shift: offerLabel(listing, slot),
     listing_title: listing?.title || "",
   };
+}
+
+
+function sortByFeaturedDate(a, b) {
+  const featured = Number(b.featured) - Number(a.featured);
+  if (featured) return featured;
+  return new Date(b.created_at) - new Date(a.created_at);
+}
+
+/** Datos públicos de un anunciante: nombre y cantidades, sin email. */
+export function getAdvertiser(store, ownerId, { isAdmin = false } = {}) {
+  const person = findProfile(store, ownerId);
+  if (!person) return null;
+  const listingCount = store.listings.filter((item) => item.owner_id === ownerId && isPublicListing(item)).length;
+  const seekCount = store.seeks.filter((item) => (
+    item.owner_id === ownerId
+    && item.status === "active"
+    && new Date(item.expires_at) > new Date()
+  )).length;
+  const hasPrivate = isAdmin && store.listings.some((item) => item.owner_id === ownerId && item.status !== "deleted");
+  if (!isAdmin && listingCount === 0 && seekCount === 0 && !hasPrivate) return null;
+  if (!listingCount && !seekCount && !hasPrivate) return null;
+  return {
+    id: person.id,
+    full_name: person.full_name || "",
+    listing_count: listingCount,
+    seek_count: seekCount,
+  };
+}
+
+export function advertiserListings(store, ownerId, { includePrivate = false } = {}) {
+  return store.listings
+    .filter((item) => item.owner_id === ownerId && item.status !== "deleted")
+    .filter((item) => includePrivate || isPublicListing(item))
+    .map((item) => hydrateListing(store, item))
+    .sort(sortByFeaturedDate);
+}
+
+export function advertiserSeeks(store, ownerId) {
+  return store.seeks
+    .filter((item) => (
+      item.owner_id === ownerId
+      && item.status === "active"
+      && new Date(item.expires_at) > new Date()
+    ))
+    .map((item) => hydrateSeek(store, item))
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
 }
 
 export function adminListings(store) {

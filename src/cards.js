@@ -1,6 +1,6 @@
 import { photoUrl } from "./api.js";
 import { isNewListing } from "./filter.js";
-import { amenityLabel, esc, priceLabel, typeLabel } from "./format.js";
+import { amenityLabel, esc, formatArs, priceLabel, seekWaText, typeLabel, waLink } from "./format.js";
 import { DISTRICTS, isVenue } from "./geo.js";
 
 export function districtOptions(selected, anyLabel = "Todos los distritos") {
@@ -51,4 +51,17 @@ export function upsellHtml() {
     <p>Publicar el quincho o el salón es gratis. Con el plan Pro sumás el calendario para que te reserven el día o el turno, avisos ilimitados y destacados. Mientras tanto, la consulta es por WhatsApp.</p>
     <p><a class="btn btn-small btn-primary" href="#/planes">Ver el plan Pro</a></p>
   </aside>`;
+}
+
+export function seekCard(seek, { hideOwner = false } = {}) {
+  return `<article class="seek" data-testid="seek-card">
+    <p class="eyebrow">${esc(typeLabel(seek.type))}${seek.district ? ` · ${esc(seek.district)}` : " · cualquier distrito"}</p>
+    <h2><a href="#/busco/${esc(seek.id)}">Hasta ${esc(formatArs(seek.budget_ars))}</a></h2>
+    <p>${esc(seek.note)}</p>
+    ${hideOwner ? "" : `<p class="fine">${esc(seek.owner_name || "Vecino")}${seek.example ? " · ejemplo" : ""}</p>`}
+    <div class="row-actions">
+      <a class="btn btn-wa" data-stat="whatsapp" data-id="${esc(seek.id)}" target="_blank" rel="noopener noreferrer" href="${esc(waLink(seek.whatsapp, seekWaText(seek)))}">Escribir por WhatsApp</a>
+      <a class="btn btn-ghost" href="#/busco/${esc(seek.id)}">Compartir</a>
+    </div>
+  </article>`;
 }

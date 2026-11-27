@@ -1,4 +1,4 @@
-import { getListing, isDemo, listSlots, maybeTrackView, photoUrl, reportListing, requestBooking, trackStat } from "../api.js";
+import { getAdvertiser, getListing, isDemo, listSlots, maybeTrackView, photoUrl, reportListing, requestBooking, trackStat } from "../api.js";
 import { render } from "../bus.js";
 import { upsellHtml } from "../cards.js";
 import { demoNoticeHtml } from "../demo-ui.js";
@@ -26,6 +26,16 @@ export async function renderDetail(view, route, session) {
     view.innerHTML = `<section class="page-head"><h1 tabindex="-1">Aviso no disponible</h1><p>Puede haber vencido, estar alquilado o haber sido ocultado.</p><p><a class="btn btn-primary" href="#/">Volver al inicio</a></p></section>`;
     return;
   }
+  let listingCount = 0;
+  if (listing.owner_id) {
+    try {
+      const advertiser = await getAdvertiser(listing.owner_id);
+      listingCount = advertiser?.listing_count || 0;
+    } catch {
+      listingCount = 0;
+    }
+  }
+  if (isPublicListing(listing)) listingCount = Math.max(listingCount, 1);
   const venue = isVenue(listing.type);
   const slots = venue && listing.booking_enabled ? await listSlots(listing.id) : [];
   const photos = listing.photo_urls || [];
@@ -56,7 +66,7 @@ export async function renderDetail(view, route, session) {
       <p class="eyebrow">${esc(listing.district)}</p>
       <h1 tabindex="-1">${esc(listing.title)}</h1>
       <p class="price price-lg">${priceHtml(listing)}</p>
-      <p class="owner">Publica ${esc(listing.owner_name || "un vecino")}</p>
+      <p class="owner">${ownerLine(listing, listingCount)}</p>
       <div class="row"><button type="button" class="btn btn-ghost" data-share data-testid="share">${icon("share")} Compartir</button></div>
       <div class="chips">
         ${venue && listing.capacity ? `<span class="chip">Hasta ${esc(listing.capacity)} personas</span>` : ""}
@@ -194,4 +204,15 @@ function priceHtml(listing) {
   }
   const match = /^(.*) \/ (.+)$/.exec(label);
   return match ? `${esc(match[1])} <small>por ${esc(match[2])}</small>` : esc(label);
+}
+
+function ownerLine(listing, listingCount) {
+  const name = listing.owner_name || "un vecino";
+  if (!listing.owner_id) return `Publica ${esc(name)}`;
+  const href = `#/anunciante/${esc(listing.owner_id)}`;
+  const who = `Publica <a href="${href}" data-testid="advertiser-link">${esc(name)}</a>`;
+  if (listingCount > 1) {
+    return `${who} · <a href="${href}" data-testid="advertiser-more">Ver todos sus avisos (${listingCount})</a>`;
+  }
+  return who;
 }
