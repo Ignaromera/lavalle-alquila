@@ -31,3 +31,9 @@ Con ese id se busca el mail en el panel de Resend (Emails) para ver si se entreg
 La API key de la función es solo de envío, así que el estado no se puede consultar desde la función.
 
 Reenviar la bienvenida a mano (SQL Editor): `select private.avisar_mail(jsonb_build_object('type','welcome','user_id','<uuid>'::uuid));`
+
+## Denuncia
+
+- `emails/11-denuncia.html`: aviso al equipo cuando alguien denuncia un aviso o una búsqueda.
+- Lo manda `enviar-mail` con el tipo `report_received`, siempre a `jirfcarp@gmail.com`.
+- El trigger `mail_denuncia` (en `migration-reports-moderacion.sql`) llama a `private.avisar_mail` después de un INSERT en `reports`. Si el envío falla, la denuncia igual se guarda.

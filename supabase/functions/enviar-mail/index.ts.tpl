@@ -35,6 +35,10 @@ const TEMPLATES: Record<string, { subject: string; html: string }> = {
     subject: "Volviste al plan Gratis",
     html: __HTML_SUB_ENDED__,
   },
+  report_received: {
+    subject: "Nueva denuncia en Lavalle Alquila",
+    html: __HTML_REPORT__,
+  },
 };
 
 const SUB_KINDS = new Set(["subscription_started", "payment_failed", "subscription_cancelled", "subscription_ended"]);
@@ -142,7 +146,7 @@ Deno.serve(async (req) => {
   const got = req.headers.get("x-webhook-secret") ?? "";
   if (req.method !== "POST" || !secret || !same(got, secret)) return json({ error: "no autorizado" }, 401);
 
-  let payload: { type?: string; user_id?: string; listing_id?: string; owner_id?: string; title?: string; plan?: string; interval?: string; amount?: number; until?: string };
+  let payload: { type?: string; user_id?: string; listing_id?: string; owner_id?: string; title?: string; plan?: string; interval?: string; amount?: number; until?: string; reason?: string; details?: string; link?: string; seek_id?: string; report_id?: string };
   try { payload = await req.json(); } catch { return json({ error: "json inválido" }, 400); }
 
   const apiKey = Deno.env.get("RESEND_API_KEY");
@@ -179,6 +183,30 @@ Deno.serve(async (req) => {
   } else if (kind && SUB_KINDS.has(kind)) {
     if (!payload.user_id || !UUID.test(payload.user_id)) return json({ error: "user_id inválido" }, 400);
     userId = payload.user_id;
+  } else if (kind === "report_received") {
+    const tpl = TEMPLATES.report_received;
+    const motivo = String(payload.reason ?? "");
+    const detalle = String(payload.details ?? "").trim();
+    const titulo = String(payload.title ?? "una publicación");
+    const href = String(payload.link ?? `${SITE}/#/admin`);
+    const html = fill(tpl.html, {
+      TITULO: esc(titulo || "una publicación"),
+      MOTIVO: esc(motivo || "sin motivo"),
+      DETALLE: detalle ? esc(detalle) : "Sin comentario.",
+      LINK: href,
+    }, "");
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+      body: JSON.stringify({ from: FROM, to: ["jirfcarp@gmail.com"], subject: tpl.subject, html }),
+    });
+    if (!r.ok) {
+      console.error("Resend", r.status, await r.text());
+      return json({ error: "Resend rechazó el envío", status: r.status }, 502);
+    }
+    const sent = await r.json().catch(() => ({}));
+    console.log("enviado", kind, "jirfcarp@gmail.com", sent?.id ?? "sin id");
+    return json({ ok: true, type: kind, id: sent?.id ?? null });
   } else {
     return json({ error: "tipo desconocido" }, 400);
   }

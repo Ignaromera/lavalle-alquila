@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /muestras/
+
+Sitemap: https://lavallealquila.com.ar/sitemap.xml

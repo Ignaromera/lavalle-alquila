@@ -575,15 +575,43 @@ where l.status = 'active'
 
 create table public.reports (
   id uuid primary key default gen_random_uuid(),
-  listing_id uuid not null references public.listings (id) on delete cascade,
+  listing_id uuid references public.listings (id) on delete cascade,
   visitor_id text not null check (char_length(visitor_id) between 8 and 80),
-  reason text not null check (reason in ('estafa', 'alquilado', 'falso', 'otro')),
+  reason text not null check (reason in ('estafa', 'alquilado', 'falso', 'falso_alquilado', 'datos', 'inapropiado', 'otro')),
   details text not null default '' check (char_length(details) <= 500),
   created_at timestamptz not null default now(),
-  unique (listing_id, visitor_id)
+  resolved_at timestamptz,
+  resolved_by uuid references public.profiles (id) on delete set null
 );
 
+create unique index reports_listing_visitor_uidx
+  on public.reports (listing_id, visitor_id)
+  where listing_id is not null;
 create index reports_listing_idx on public.reports (listing_id);
+create index reports_unresolved_idx on public.reports (created_at desc) where resolved_at is null;
+
+create or replace function public.reports_before_insert()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  total integer;
+begin
+  select count(*) into total
+  from public.reports
+  where visitor_id = new.visitor_id
+    and created_at > now() - interval '24 hours';
+  if total >= 8 then
+    raise exception 'Llegaste al límite de denuncias por hoy. Probá mañana.';
+  end if;
+  return new;
+end;
+$$;
+
+create trigger reports_before_insert
+  before insert on public.reports
+  for each row execute function public.reports_before_insert();
 
 create or replace function public.hide_after_three_reports()
 returns trigger
@@ -594,7 +622,13 @@ as $$
 declare
   total integer;
 begin
-  select count(*) into total from public.reports where listing_id = new.listing_id;
+  if new.listing_id is null then
+    return new;
+  end if;
+  select count(*) into total
+  from public.reports
+  where listing_id = new.listing_id
+    and resolved_at is null;
   if total >= 3 then
     perform set_config('lavalle.system', 'on', true);
     update public.listings
@@ -614,21 +648,6 @@ create trigger hide_after_three_reports
 
 alter table public.reports enable row level security;
 
-create policy reports_insert on public.reports
-  for insert to anon, authenticated
-  with check (
-    reason in ('estafa', 'alquilado', 'falso', 'otro')
-    and char_length(visitor_id) between 8 and 80
-    and not exists (
-      select 1 from public.listings l
-      where l.id = listing_id and l.owner_id = auth.uid()
-    )
-  );
-
-create policy reports_admin_select on public.reports
-  for select to authenticated
-  using (public.is_admin());
-
 -- ---------------------------------------------------------------------------
 -- Busco alquiler
 -- ---------------------------------------------------------------------------
@@ -646,6 +665,47 @@ create table public.seeks (
 );
 
 create index seeks_owner_idx on public.seeks (owner_id);
+
+alter table public.reports
+  add column seek_id uuid references public.seeks (id) on delete cascade;
+alter table public.reports
+  add constraint reports_subject_check check (
+    (listing_id is not null and seek_id is null)
+    or (listing_id is null and seek_id is not null)
+  );
+create unique index reports_seek_visitor_uidx
+  on public.reports (seek_id, visitor_id)
+  where seek_id is not null;
+create index reports_seek_idx on public.reports (seek_id);
+
+create policy reports_insert on public.reports
+  for insert to anon, authenticated
+  with check (
+    reason in ('estafa', 'alquilado', 'falso', 'falso_alquilado', 'datos', 'inapropiado', 'otro')
+    and char_length(visitor_id) between 8 and 80
+    and (
+      (listing_id is not null and seek_id is null and not exists (
+        select 1 from public.listings l
+        where l.id = listing_id and l.owner_id = auth.uid()
+      ))
+      or
+      (seek_id is not null and listing_id is null and not exists (
+        select 1 from public.seeks s
+        where s.id = seek_id and s.owner_id = auth.uid()
+      ))
+    )
+  );
+
+create policy reports_admin_select on public.reports
+  for select to authenticated
+  using (public.is_admin());
+
+create policy reports_admin_update on public.reports
+  for update to authenticated
+  using (public.is_admin())
+  with check (public.is_admin());
+
+
 
 create or replace function public.seeks_before_write()
 returns trigger
@@ -1206,6 +1266,7 @@ grant select on public.listings to anon, authenticated;
 grant insert, update on public.listings to authenticated;
 grant select on public.listings_public to anon, authenticated;
 grant select, insert on public.reports to anon, authenticated;
+grant update on public.reports to authenticated;
 grant select on public.seeks to anon, authenticated;
 grant insert, update on public.seeks to authenticated;
 grant select on public.seeks_public to anon, authenticated;

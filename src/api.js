@@ -617,6 +617,20 @@ export function visitorId() {
   }
 }
 
+function reportInsertError(error, kind) {
+  const subject = kind === "seek" ? "esta búsqueda" : "este aviso";
+  if (/límite de denuncias/i.test(error.message || "")) {
+    throw new Error("Llegaste al límite de denuncias por hoy. Probá mañana.");
+  }
+  if (/duplicate|unique/i.test(error.message) || error.code === "23505") {
+    throw new Error(`Ya denunciaste ${subject}. Gracias.`);
+  }
+  if (isPermissionError(error)) {
+    throw new Error(`No se pudo denunciar ${subject}. Si es tuyo, no hace falta denunciarlo.`);
+  }
+  throw asError(error);
+}
+
 export async function reportListing(id, { reason, details }) {
   const visitor = visitorId();
   if (isDemo()) return demo.addReport(mem(), id, visitor, reason, details);
@@ -630,15 +644,21 @@ export async function reportListing(id, { reason, details }) {
   });
   query.headers.set("Prefer", "return=minimal");
   const { error } = await query;
-  if (error) {
-    if (/duplicate|unique/i.test(error.message) || error.code === "23505") {
-      throw new Error("Ya denunciaste este aviso. Gracias.");
-    }
-    if (isPermissionError(error)) {
-      throw new Error("No se pudo denunciar este aviso. Si es tuyo, no hace falta denunciarlo.");
-    }
-    throw asError(error);
-  }
+  if (error) reportInsertError(error, "listing");
+}
+
+export async function reportSeek(id, { reason, details }) {
+  const visitor = visitorId();
+  if (isDemo()) return demo.addReport(mem(), null, visitor, reason, details, { seekId: id });
+  const query = getClient().from("reports").insert({
+    seek_id: id,
+    visitor_id: visitor,
+    reason,
+    details: details || "",
+  });
+  query.headers.set("Prefer", "return=minimal");
+  const { error } = await query;
+  if (error) reportInsertError(error, "seek");
 }
 
 export async function trackStat(subjectType, subjectId, kind) {
@@ -884,12 +904,13 @@ export async function adminListings() {
   if (!session?.profile.is_admin) throw new Error("Esta sección es solo para el equipo de Lavalle Alquila.");
   const [listings, reports] = await Promise.all([
     getClient().from("listings").select("*").neq("status", "deleted").order("created_at", { ascending: false }),
-    getClient().from("reports").select("listing_id, reason, details, created_at"),
+    getClient().from("reports").select("id, listing_id, seek_id, reason, details, created_at, resolved_at"),
   ]);
   if (listings.error) throw asError(listings.error);
   if (reports.error) throw asError(reports.error);
   const grouped = new Map();
   for (const report of reports.data || []) {
+    if (!report.listing_id || report.resolved_at) continue;
     const list = grouped.get(report.listing_id) || [];
     list.push(report);
     grouped.set(report.listing_id, list);
@@ -912,6 +933,68 @@ export async function adminListings() {
       };
     })
     .sort((a, b) => Number(b.status === "hidden") - Number(a.status === "hidden") || b.report_count - a.report_count);
+}
+
+
+function decorateAdminReport(report, listingsById, seeksById) {
+  const listing = report.listing_id ? listingsById.get(report.listing_id) : null;
+  const seek = report.seek_id ? seeksById.get(report.seek_id) : null;
+  return {
+    ...report,
+    subject_type: listing ? "listing" : "seek",
+    subject_title: listing?.title || (seek ? `Busco alquiler: ${seek.note || ""}` : "Publicación"),
+    subject_status: listing?.status || seek?.status || "",
+    subject_href: listing ? `#/aviso/${listing.id}` : seek ? `#/busco/${seek.id}` : "#/",
+  };
+}
+
+export async function adminReports() {
+  if (isDemo()) return demo.adminReports(mem());
+  const session = await getSession();
+  if (!session?.profile.is_admin) throw new Error("Esta sección es solo para el equipo de Lavalle Alquila.");
+  const [reports, listings, seeks] = await Promise.all([
+    getClient().from("reports").select("id, listing_id, seek_id, reason, details, created_at, resolved_at").order("created_at", { ascending: false }),
+    getClient().from("listings").select("id, title, status"),
+    getClient().from("seeks").select("id, note, status"),
+  ]);
+  if (reports.error) throw asError(reports.error);
+  if (listings.error) throw asError(listings.error);
+  if (seeks.error) throw asError(seeks.error);
+  const listingsById = new Map((listings.data || []).map((row) => [row.id, row]));
+  const seeksById = new Map((seeks.data || []).map((row) => [row.id, row]));
+  return (reports.data || [])
+    .map((row) => decorateAdminReport(row, listingsById, seeksById))
+    .sort((a, b) => Number(!!a.resolved_at) - Number(!!b.resolved_at) || new Date(b.created_at) - new Date(a.created_at));
+}
+
+export async function adminResolveReport(id) {
+  if (isDemo()) return demo.adminResolveReport(mem(), id);
+  const session = await getSession();
+  if (!session?.profile.is_admin) throw new Error("No autorizado");
+  const { error } = await getClient().from("reports").update({
+    resolved_at: new Date().toISOString(),
+    resolved_by: session.user.id,
+  }).eq("id", id);
+  if (error) throw asError(error);
+}
+
+export async function adminHideListing(id) {
+  if (isDemo()) return demo.adminHideListing(mem(), id);
+  const session = await getSession();
+  if (!session?.profile.is_admin) throw new Error("No autorizado");
+  const { error } = await getClient().from("listings").update({
+    status: "hidden",
+    hidden_reason: "admin",
+  }).eq("id", id);
+  if (error) throw asError(error);
+}
+
+export async function adminRemoveSeek(id) {
+  if (isDemo()) return demo.adminRemoveSeek(mem(), id);
+  const session = await getSession();
+  if (!session?.profile.is_admin) throw new Error("No autorizado");
+  const { error } = await getClient().from("seeks").update({ status: "deleted" }).eq("id", id);
+  if (error) throw asError(error);
 }
 
 export async function adminRestore(id) {

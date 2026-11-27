@@ -222,3 +222,122 @@ test("el pedido de turno y la estadística van por RPC, sin insert que devuelva 
   assert.equal(calls.some((call) => /\/booking_requests/.test(call.url) && call.method === "POST"), false);
   assert.equal(calls.some((call) => /\/stat_daily/.test(call.url)), false);
 });
+
+test("el formulario de denuncia trae los motivos pedidos", async () => {
+  const win = installDom();
+  globalThis.fetch = async (input) => {
+    const url = String(input?.url || input);
+    if (url.includes("listings_public")) {
+      return new Response(JSON.stringify(listing()), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    return new Response("null", { status: 200, headers: { "content-type": "application/json" } });
+  };
+  const view = document.createElement("div");
+  document.body.append(view);
+  await renderDetail(view, { parts: ["aviso", LISTING_ID], params: new URLSearchParams() }, null);
+  const options = [...view.querySelectorAll("[name=reason] option")].map((item) => [item.value, item.textContent]);
+  assert.deepEqual(options, [
+    ["estafa", "Estafa o fraude"],
+    ["falso_alquilado", "Aviso falso o ya alquilado"],
+    ["datos", "Datos o fotos incorrectas"],
+    ["inapropiado", "Contenido inapropiado"],
+    ["otro", "Otro"],
+  ]);
+  assert.match(view.textContent, /No hace falta crear una cuenta/);
+  await win.happyDOM.abort();
+});
+
+test("una búsqueda también se puede denunciar, menos si es propia", async () => {
+  const { Window } = await import("happy-dom");
+  const { renderSeek } = await import("../src/pages/seeks.js");
+  const seek = {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa7",
+    owner_id: OWNER,
+    type: "casa",
+    district: "Villa Tulumaya",
+    budget_ars: 400000,
+    note: "Familia con una perra mediana. Buscamos patio.",
+    status: "active",
+    expires_at: "2099-01-01T00:00:00.000Z",
+    created_at: "2026-01-01T00:00:00.000Z",
+    owner_name: "Pedro",
+    whatsapp: "5492615550105",
+  };
+  const win = new Window({ url: "https://lavallealquila.com.ar/#/busco/" + seek.id });
+  globalThis.window = win;
+  globalThis.document = win.document;
+  globalThis.location = win.location;
+  globalThis.HTMLElement = win.HTMLElement;
+  globalThis.localStorage = win.localStorage;
+  globalThis.sessionStorage = win.sessionStorage;
+  globalThis.FormData = win.FormData;
+  globalThis.fetch = async () => new Response(JSON.stringify(seek), { status: 200, headers: { "content-type": "application/json" } });
+  const route = { parts: ["busco", seek.id], params: new URLSearchParams() };
+  const view = document.createElement("div");
+  document.body.append(view);
+  await renderSeek(view, route, null);
+  assert.ok(view.querySelector("[data-report]"));
+  assert.match(view.textContent, /Denunciar búsqueda/);
+  assert.match(view.querySelector("[name=reason]").textContent, /Estafa o fraude/);
+  view.innerHTML = "";
+  await renderSeek(view, route, session(OWNER));
+  assert.equal(view.querySelector("[data-report]"), null);
+  await win.happyDOM.abort();
+});
+
+test("en demo, el panel lista denuncias y se pueden marcar resueltas u ocultar el aviso", async () => {
+  const { Window } = await import("happy-dom");
+  const { renderAdmin } = await import("../src/pages/admin.js");
+  const { IDS } = await import("../src/demo-store.js");
+  const win = new Window({ url: "https://lavallealquila.com.ar/?demo=1#/admin" });
+  globalThis.window = win;
+  globalThis.document = win.document;
+  globalThis.location = win.location;
+  globalThis.HTMLElement = win.HTMLElement;
+  globalThis.Node = win.Node;
+  globalThis.localStorage = win.localStorage;
+  globalThis.sessionStorage = win.sessionStorage;
+  const view = document.createElement("div");
+  document.body.append(view);
+  await renderAdmin(view, { name: "admin", parts: ["admin"], params: new URLSearchParams() }, null);
+  const list = view.querySelector("[data-testid=admin-reports]");
+  assert.ok(list);
+  assert.ok(view.querySelectorAll("[data-testid=admin-report]").length >= 3);
+  assert.match(list.textContent, /Departamento casi regalado/);
+  const resolve = view.querySelector("[data-testid=resolve-report]");
+  assert.ok(resolve);
+  assert.ok(view.querySelector("[data-testid=hide-listing], [data-hide]"));
+  assert.match(view.querySelector("[data-testid=reports-heading]").textContent, /Denuncias/);
+  await win.happyDOM.abort();
+  void IDS;
+});
+
+test("el store acepta denuncias de avisos y de búsquedas, con tope diario, y se pueden resolver", async () => {
+  const { createDemoStore, addReport, adminReports, adminResolveReport, adminHideListing, IDS } = await import("../src/demo-store.js");
+  const store = createDemoStore();
+  const visitor = "visitante-prueba-abc";
+  addReport(store, IDS.casaTulumaya, visitor, "inapropiado", "Comentario de prueba");
+  const open = adminReports(store).filter((item) => item.listing_id === IDS.casaTulumaya && !item.resolved_at);
+  assert.equal(open.length, 1);
+  assert.equal(open[0].reason, "inapropiado");
+  assert.match(open[0].subject_title, /Casa con patio/);
+  adminResolveReport(store, open[0].id, "admin");
+  assert.ok(store.reports.find((item) => item.id === open[0].id).resolved_at);
+  adminHideListing(store, IDS.casaTulumaya);
+  assert.equal(store.listings.find((item) => item.id === IDS.casaTulumaya).status, "hidden");
+
+  addReport(store, null, visitor, "datos", "El presupuesto no cierra", { seekId: "ffffffff-ffff-4fff-8fff-000000000001" });
+  const seeks = adminReports(store).filter((item) => item.seek_id === "ffffffff-ffff-4fff-8fff-000000000001");
+  assert.equal(seeks.length, 1);
+  assert.match(seeks[0].subject_title, /Busco alquiler/);
+
+  const more = [IDS.deptoPlumero, IDS.local, IDS.terreno, IDS.casaVioletas, IDS.casaAndre, IDS.quincho];
+  for (const id of more) addReport(store, id, visitor, "otro", "");
+  assert.throws(
+    () => addReport(store, IDS.salon, visitor, "otro", ""),
+    /límite de denuncias por hoy/,
+  );
+});

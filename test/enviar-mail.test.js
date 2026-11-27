@@ -83,3 +83,22 @@ test("mails de suscripción: sin fecha, la frase queda vacía y el mail no se ro
   ({ res } = await send(handler, { type: "nada" }));
   assert.equal(res.status, 400);
 });
+
+test("la denuncia le llega a jirfcarp y no busca un usuario denunciante", async () => {
+  const handler = await loadFunction();
+  const { res, sent } = await send(handler, {
+    type: "report_received",
+    reason: "estafa",
+    details: "Pide seña por transferencia",
+    title: "Casa con patio cerca de la plaza",
+    link: "https://lavallealquila.com.ar/#/aviso/d39cd325-0ba5-47d6-a6b8-9b1913cfb4ff",
+  });
+  assert.equal(res.status, 200);
+  assert.deepEqual(sent[0].body.to, ["jirfcarp@gmail.com"]);
+  assert.equal(sent[0].body.subject, "Nueva denuncia en Lavalle Alquila");
+  assert.match(sent[0].body.html, /Casa con patio cerca de la plaza/);
+  assert.match(sent[0].body.html, /estafa/);
+  assert.match(sent[0].body.html, /Pide seña por transferencia/);
+  assert.match(sent[0].body.html, /#\/aviso\/d39cd325-0ba5-47d6-a6b8-9b1913cfb4ff/);
+  assert.equal(/\{\{/.test(sent[0].body.html), false);
+});

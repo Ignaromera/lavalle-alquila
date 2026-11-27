@@ -1,4 +1,5 @@
 import { applyFilters, isPublicListing } from "./filter.js";
+import { assertReportReason, canReportAgain, clipReportDetails } from "./reports.js";
 import { addDays, clock, hoursLabel, isoDay, normalizeWhatsapp, plusDaysISO } from "./format.js";
 import { AMENITY_IDS, DISTRICT_NAMES, isVenue, pointInLavalle } from "./geo.js";
 import { PLANS, UNLIMITED, featuredCount, pickSubscription, planId } from "./plans.js";
@@ -724,27 +725,92 @@ export function renewListing(store, ownerId, listingId) {
   return hydrateListing(store, listing);
 }
 
-export function addReport(store, listingId, visitorId, reason, details) {
+export function addReport(store, listingId, visitorId, reason, details, { seekId } = {}) {
+  assertReportReason(reason);
+  if (!canReportAgain(store.reports, visitorId)) {
+    throw new Error("Llegaste al límite de denuncias por hoy. Probá mañana.");
+  }
+  if (seekId) {
+    const seek = store.seeks.find((item) => item.id === seekId && item.status !== "deleted");
+    if (!seek) throw new Error("Esa búsqueda no está");
+    if (store.reports.some((item) => item.seek_id === seekId && item.visitor_id === visitorId)) {
+      throw new Error("Ya denunciaste esta búsqueda. Gracias.");
+    }
+    store.reports.push({
+      id: crypto.randomUUID(),
+      listing_id: null,
+      seek_id: seekId,
+      visitor_id: visitorId,
+      reason,
+      details: clipReportDetails(details),
+      created_at: new Date().toISOString(),
+      resolved_at: null,
+      resolved_by: null,
+    });
+    return store.reports.filter((item) => item.seek_id === seekId && !item.resolved_at).length;
+  }
   const listing = store.listings.find((item) => item.id === listingId && item.status !== "deleted");
   if (!listing) throw new Error("Ese aviso no está");
-  if (!["estafa", "alquilado", "falso", "otro"].includes(reason)) throw new Error("Elegí un motivo");
   if (store.reports.some((item) => item.listing_id === listingId && item.visitor_id === visitorId)) {
     throw new Error("Ya denunciaste este aviso. Gracias.");
   }
   store.reports.push({
     id: crypto.randomUUID(),
     listing_id: listingId,
+    seek_id: null,
     visitor_id: visitorId,
     reason,
-    details: String(details || "").slice(0, 500),
+    details: clipReportDetails(details),
     created_at: new Date().toISOString(),
+    resolved_at: null,
+    resolved_by: null,
   });
-  const count = store.reports.filter((item) => item.listing_id === listingId).length;
+  const count = store.reports.filter((item) => item.listing_id === listingId && !item.resolved_at).length;
   if (count >= 3 && listing.status === "active") {
     listing.status = "hidden";
     listing.hidden_reason = "reports";
   }
   return count;
+}
+
+export function adminReports(store) {
+  return store.reports
+    .map((report) => decorateReport(store, report))
+    .sort((a, b) => Number(!!a.resolved_at) - Number(!!b.resolved_at) || new Date(b.created_at) - new Date(a.created_at));
+}
+
+function decorateReport(store, report) {
+  const listing = report.listing_id ? store.listings.find((item) => item.id === report.listing_id) : null;
+  const seek = report.seek_id ? store.seeks.find((item) => item.id === report.seek_id) : null;
+  return {
+    ...report,
+    subject_type: listing ? "listing" : "seek",
+    subject_title: listing?.title || (seek ? `Busco alquiler: ${seek.note}` : "Publicación"),
+    subject_status: listing?.status || seek?.status || "",
+    subject_href: listing ? `#/aviso/${listing.id}` : seek ? `#/busco/${seek.id}` : "#/",
+  };
+}
+
+export function adminResolveReport(store, reportId, actorId = null) {
+  const report = store.reports.find((item) => item.id === reportId);
+  if (!report) throw new Error("Esa denuncia no está");
+  report.resolved_at = new Date().toISOString();
+  report.resolved_by = actorId;
+  return decorateReport(store, report);
+}
+
+export function adminHideListing(store, listingId) {
+  const listing = store.listings.find((item) => item.id === listingId);
+  if (!listing) throw new Error("Ese aviso no está");
+  listing.status = "hidden";
+  listing.hidden_reason = listing.hidden_reason || "admin";
+  return hydrateListing(store, listing);
+}
+
+export function adminRemoveSeek(store, seekId) {
+  const seek = store.seeks.find((item) => item.id === seekId);
+  if (!seek) throw new Error("Esa búsqueda no está");
+  seek.status = "deleted";
 }
 
 export function publicSeeks(store) {
@@ -997,7 +1063,8 @@ export function adminListings(store) {
     .filter((item) => item.status !== "deleted")
     .map((item) => {
       const reports = store.reports.filter((report) => report.listing_id === item.id);
-      return { ...hydrateListing(store, item), report_count: reports.length, reports };
+      const open = reports.filter((report) => !report.resolved_at);
+      return { ...hydrateListing(store, item), report_count: open.length, reports: open };
     })
     .sort((a, b) => Number(b.status === "hidden") - Number(a.status === "hidden") || b.report_count - a.report_count);
 }

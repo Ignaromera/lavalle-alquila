@@ -1,4 +1,4 @@
-import { createSeek, deleteSeek, ensureDemoProfile, getSeek, isDemo, listSeeks, maybeTrackView, renewSeek, trackStat } from "../api.js";
+import { createSeek, deleteSeek, ensureDemoProfile, getSeek, isDemo, listSeeks, maybeTrackView, renewSeek, reportSeek, trackStat } from "../api.js";
 import { render } from "../bus.js";
 import { districtOptions, seekCard } from "../cards.js";
 import { demoNoticeHtml } from "../demo-ui.js";
@@ -8,6 +8,7 @@ import { esc, formatArs, formatWhen, parseMoney, seekWaText, typeLabel, waLink }
 import { DISTRICT_NAMES, HOUSING_TYPES, VENUE_TYPES } from "../geo.js";
 import { setPageMeta } from "../meta.js";
 import { bindShare, seekUrl, shareFallbackHtml } from "../share.js";
+import { bindReportSheet, reportSheetHtml } from "../reports.js";
 import { toast } from "../toast.js";
 
 
@@ -58,7 +59,7 @@ export async function renderSeeks(view) {
   });
 }
 
-export async function renderSeek(view, route) {
+export async function renderSeek(view, route, session) {
   const seek = await getSeek(route.parts[1]);
   const visible = seek && seek.status !== "deleted" && new Date(seek.expires_at) > new Date();
   if (!visible) {
@@ -79,12 +80,25 @@ export async function renderSeek(view, route) {
       <p class="fine">${esc(seek.owner_name || "Vecino")}${seek.example ? " · ejemplo" : ""}</p>
       <button type="button" class="btn btn-ghost" data-share data-testid="share">Compartir</button>
       <p><a class="btn btn-wa" data-stat="whatsapp" target="_blank" rel="noopener noreferrer" href="${esc(waLink(seek.whatsapp, seekWaText(seek)))}">Escribir por WhatsApp</a></p>
+      ${session?.user?.id && seek.owner_id === session.user.id ? "" : `<div class="row"><button type="button" class="btn btn-danger btn-block" data-report data-testid="report">Denunciar búsqueda</button></div>`}
+      ${session?.user?.id && seek.owner_id === session.user.id ? "" : reportSheetHtml({ kind: "seek" })}
       ${shareFallbackHtml({ title, text, url })}
     </article>`;
   bindShare(view, { title, text, url, onShare: () => trackStat("seek", seek.id, "share") });
   view.querySelectorAll("[data-stat=whatsapp]").forEach((link) => {
     link.addEventListener("click", () => trackStat("seek", seek.id, "whatsapp"));
   });
+  if (!(session?.user?.id && seek.owner_id === session.user.id)) {
+    bindReportSheet(view, async ({ reason, details, close }) => {
+      try {
+        await reportSeek(seek.id, { reason, details });
+        toast("Recibimos tu denuncia. Gracias.");
+        close();
+      } catch (error) {
+        toast(error.message);
+      }
+    });
+  }
   maybeTrackView("seek", seek.id);
 }
 

@@ -9,14 +9,8 @@ import { setPageMeta } from "../meta.js";
 import { icon } from "../icons.js";
 import { bindShare, listingUrl, shareFallbackHtml } from "../share.js";
 import { bindTurnero, calFor, turneroHtml } from "../turnero-ui.js";
+import { bindReportSheet, reportSheetHtml } from "../reports.js";
 import { toast } from "../toast.js";
-
-const REASONS = [
-  ["estafa", "Parece una estafa"],
-  ["alquilado", "Ya está alquilado"],
-  ["falso", "Datos o fotos falsas"],
-  ["otro", "Otro"],
-];
 
 export async function renderDetail(view, route, session) {
   const listing = await getListing(route.parts[1]);
@@ -97,21 +91,11 @@ export async function renderDetail(view, route, session) {
           <li>Lavalle Alquila no cobra señas ni intermedia el pago.</li>
         </ul>
       </aside>
-      ${mine ? "" : `<div class="row"><button type="button" class="btn btn-danger btn-block" data-report>Denunciar aviso</button></div>`}
+      ${mine ? "" : `<div class="row"><button type="button" class="btn btn-danger btn-block" data-report data-testid="report">Denunciar aviso</button></div>`}
       <div class="sticky-cta">
         <a class="btn btn-wa" data-stat="whatsapp" target="_blank" rel="noopener noreferrer" href="${esc(waLink(listing.whatsapp, listingWaText(listing)))}">${icon("wa")} Consultar por WhatsApp</a>
       </div>
-      ${mine ? "" : `<div class="sheet-back" data-close-report hidden></div>
-      <form class="sheet" data-report-form hidden>
-        <div class="sheet-grab"></div>
-        <h2>Denunciar aviso</h2>
-        <p class="fine">Con 3 denuncias el aviso se oculta solo, hasta que alguien del equipo lo revise. No hace falta crear una cuenta.</p>
-        <label class="field">Motivo
-          <select name="reason">${REASONS.map(([id, label]) => `<option value="${id}">${label}</option>`).join("")}</select>
-        </label>
-        <label class="field">Detalle (opcional)<textarea name="details" maxlength="500" placeholder="Qué viste"></textarea></label>
-        <button class="btn btn-danger" type="submit">Enviar denuncia</button>
-      </form>`}
+      ${mine ? "" : reportSheetHtml({ kind: "listing" })}
       ${shareFallbackHtml({ title: listing.title, text: shareText, url: shareUrl })}
     </article>`;
 
@@ -168,24 +152,11 @@ export async function renderDetail(view, route, session) {
   }
 
   if (!mine) {
-    const sheet = view.querySelector("[data-report-form]");
-    const backSheet = view.querySelector("[data-close-report]");
-    view.querySelector("[data-report]").addEventListener("click", () => {
-      sheet.hidden = false;
-      backSheet.hidden = false;
-    });
-    backSheet.addEventListener("click", () => {
-      sheet.hidden = true;
-      backSheet.hidden = true;
-    });
-    sheet.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const data = new FormData(sheet);
+    bindReportSheet(view, async ({ reason, details, close }) => {
       try {
-        await reportListing(listing.id, { reason: String(data.get("reason")), details: String(data.get("details") || "") });
+        await reportListing(listing.id, { reason, details });
         toast("Recibimos tu denuncia. Gracias.");
-        sheet.hidden = true;
-        backSheet.hidden = true;
+        close();
         render({ scroll: false });
       } catch (error) {
         toast(error.message);

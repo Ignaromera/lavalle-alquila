@@ -1,5 +1,5 @@
 const DEFAULT_TITLE = "Lavalle Alquila — Alquileres en Lavalle, Mendoza";
-const DEFAULT_DESCRIPTION = "Casas, departamentos, locales, terrenos, quinchos y salones en alquiler en Lavalle, Mendoza. Publicá tu aviso gratis y consultá por WhatsApp.";
+const DEFAULT_DESCRIPTION = "Alquileres entre vecinos de Lavalle, Mendoza. Publicá tu aviso gratis y consultá por WhatsApp.";
 
 function upsert(attr, key, value) {
   let el = document.head.querySelector(`meta[${attr}="${key}"]`);
@@ -19,6 +19,8 @@ export function setPageMeta({ title, description, url }) {
   upsert("property", "og:title", document.title);
   upsert("property", "og:description", pageDescription);
   upsert("property", "og:url", url || location.href);
+  upsert("name", "twitter:title", document.title);
+  upsert("name", "twitter:description", pageDescription);
 }
 
 export function resetPageMeta() {
