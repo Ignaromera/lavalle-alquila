@@ -36,9 +36,13 @@ p { margin: 0; }
 .wordmark img { width: 30px; height: auto; }
 .wm-text { display: inline-flex; align-items: baseline; gap: 6px; }
 .wordmark small { font-family: var(--body); font-weight: 600; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.topbar-actions { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.top-plans { font-weight: 600; font-size: 14px; text-decoration: none; color: var(--ink); white-space: nowrap; }
+.top-plans[aria-current="page"] { text-decoration: underline; text-underline-offset: 4px; }
 .who { font-weight: 600; font-size: 14px; text-decoration: none; padding: 9px 16px; border-radius: 999px; border: 1.5px solid var(--ink); color: var(--ink); white-space: nowrap; }
 @media (max-width: 480px) {
   .wordmark small { display: none; }
+  .top-plans { font-size: 13px; }
   .who { padding: 8px 10px; font-size: 13px; }
 }
 .demo-banner { margin: 8px 20px 0; padding: 10px 14px; border-radius: var(--r-sm); background: var(--cream); font-size: 13.5px; font-weight: 600; }
@@ -359,10 +363,10 @@ body.sheet-open { overflow: hidden; }
 }
 
 /* planes y suscripción */
-.plans-toggle .seg { line-height: 1.15; }
-.seg-badge { display: block; margin-top: 3px; font-size: 11px; font-weight: 700; color: var(--orange-deep); letter-spacing: 0; }
-.seg.is-on .seg-badge { color: var(--mustard); }
 .plans { display: grid; gap: 14px; margin-top: 16px; }
+.plans-yearly { margin-top: 32px; }
+.plans-yearly > h2 { margin: 0 0 6px; font-size: 28px; }
+.plans-yearly > p { margin: 0 0 4px; color: var(--muted); }
 @media (min-width: 760px) { .plans { grid-template-columns: repeat(3, 1fr); align-items: start; } }
 .plan-card { position: relative; padding: 20px 18px 18px; border-radius: var(--r-card); background: #fff; border: 1.5px solid var(--line); display: grid; gap: 10px; }
 .plan-card-pro { border-color: var(--orange); border-width: 2.5px; background: var(--paper); box-shadow: 0 10px 28px rgba(252, 111, 32, .16); }

@@ -74,7 +74,10 @@ function shell(route, session) {
         <img src="${base}brand/lavalle-alquila-marca.svg" width="30" height="24" alt="" />
         <span class="wm-text">Lavalle Alquila <small>Mendoza</small></span>
       </a>
-      <a class="who" href="#/cuenta" data-testid="header-auth">${esc(headerAccountLabel(session))}</a>
+      <div class="topbar-actions">
+        <a class="top-plans" href="#/planes" data-testid="header-planes"${route.name === "plans" ? ' aria-current="page"' : ""}>Planes</a>
+        <a class="who" href="#/cuenta" data-testid="header-auth">${esc(headerAccountLabel(session))}</a>
+      </div>
     </header>
     ${isDemo() ? demoBannerHtml() : ""}
     <main id="view" class="view"><p class="fine">Cargando…</p></main>

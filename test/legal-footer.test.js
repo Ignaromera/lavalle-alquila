@@ -21,6 +21,10 @@ test("el pie trae el Botón de arrepentimiento con mailto y el asunto pedido", (
   assert.equal(decoded(href).includes("Email de la cuenta"), false);
   assert.ok(win.document.querySelector('a[href$="privacidad.html"]'));
   assert.ok(win.document.querySelector('a[href$="terminos.html"]'));
+  const planes = win.document.querySelector("[data-testid=footer-planes]");
+  assert.ok(planes);
+  assert.equal(planes.getAttribute("href"), "#/planes");
+  assert.equal(planes.textContent, "Planes");
   win.happyDOM.close();
 });
 

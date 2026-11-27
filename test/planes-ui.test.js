@@ -32,45 +32,63 @@ async function loginAs(id) {
 const route = (query = "") => ({ parts: [], params: new URLSearchParams(query) });
 const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
 
-test("planes: Pro anual muestra $100.000, el ahorro contra $178.800 y la insignia «Mejor precio»", async () => {
+test("planes: arriba se ven los mensuales, Pro a $14.900, y abajo el anual con el ahorro", async () => {
   const win = installDom();
   const { renderPlans } = await import("../src/pages/plans.js");
   const view = document.createElement("div");
   document.body.append(view);
   await renderPlans(view, route(), await loginAs(null));
-  assert.equal(view.querySelectorAll("[data-plan]").length, 3);
+  assert.equal(view.querySelector(".plans-toggle, [data-interval=month].seg, [role=tablist]"), null, "no tiene que haber pestañas Mensual/Anual");
+  const monthly = view.querySelector("[data-testid=planes-mensuales]");
+  const yearly = view.querySelector("[data-testid=planes-anuales]");
+  assert.ok(monthly && yearly);
+  assert.equal(monthly.querySelectorAll("[data-plan]").length, 3);
+  assert.equal(monthly.contains(yearly), false);
+  assert.ok(monthly.compareDocumentPosition(yearly) & Node.DOCUMENT_POSITION_FOLLOWING, "los anuales van debajo");
+  assert.match(yearly.querySelector("h2").textContent, /Pagá por año y ahorrá/);
+
   const pro = view.querySelector("[data-testid=plan-pro]").textContent;
-  assert.match(pro, /\$100\.000/);
-  assert.match(pro, /por año/);
-  assert.match(pro, /\$178\.800/);
-  assert.match(pro, /ahorrás \$78\.800 \(44%\)/);
-  assert.match(pro, /Mejor precio/);
-  assert.match(pro, /Ahorrás 44%/);
+  assert.match(pro, /\$14\.900/);
+  assert.match(pro, /por mes/);
+  assert.match(pro, /Más completo/);
+  assert.match(pro, /\$100\.000 por año: ahorrás 44%/);
   assert.match(pro, /Avisos ilimitados/);
   assert.match(pro, /Turnero/);
   assert.match(pro, /destacados/);
+  assert.doesNotMatch(pro, /Mejor precio/);
   const plus = view.querySelector("[data-testid=plan-plus]").textContent;
   assert.match(plus, /\$6\.900/);
   assert.match(plus, /por mes/);
-  assert.match(plus, /Solo mensual/);
-  assert.doesNotMatch(plus, /Ahorrás|\$49\.000|por año|\$82\.800/);
+  assert.doesNotMatch(plus, /Solo mensual|Ahorrás|\$49\.000|por año|\$82\.800/);
   assert.match(view.querySelector("[data-testid=plan-free]").textContent, /\$0/);
+
+  const year = view.querySelector("[data-testid=plan-pro-year]").textContent;
+  assert.match(year, /\$100\.000/);
+  assert.match(year, /por año/);
+  assert.match(year, /\$178\.800/);
+  assert.match(year, /ahorrás \$78\.800 \(44%\)/);
+  assert.match(year, /Equivale a \$8\.333 por mes/);
+  assert.match(year, /Mejor precio/);
+  assert.match(year, /Ahorrás 44%/);
+  assert.match(year, /Suscribirme a Pro por un año/);
+  assert.equal(view.querySelector("[data-testid=plan-plus-year]"), null);
   await win.happyDOM.abort();
 });
 
-test("planes: el selector mensual muestra $14.900 y $6.900", async () => {
+test("planes: el parámetro periodo no esconde el Pro mensual ni preselecciona el anual", async () => {
   const win = installDom();
   const { renderPlans } = await import("../src/pages/plans.js");
   const view = document.createElement("div");
   document.body.append(view);
-  await renderPlans(view, route(), await loginAs(null));
-  view.querySelector('[data-interval="month"]').click();
-  assert.match(view.querySelector("[data-testid=plan-pro]").textContent, /\$14\.900/);
-  assert.match(view.querySelector("[data-testid=plan-pro]").textContent, /por mes/);
-  assert.match(view.querySelector("[data-testid=plan-plus]").textContent, /\$6\.900/);
-  assert.equal(/Ahorrás 44%\s*<\/span>/.test(view.querySelector("[data-testid=plan-pro]").innerHTML), false);
-  await renderPlans(view, route("periodo=mensual"), null);
-  assert.match(view.querySelector("[data-testid=plan-pro]").textContent, /\$14\.900/);
+  for (const query of ["", "periodo=anual", "periodo=mensual"]) {
+    await renderPlans(view, route(query), null);
+    assert.match(view.querySelector("[data-testid=plan-pro]").textContent, /\$14\.900/);
+    assert.match(view.querySelector("[data-testid=plan-pro]").textContent, /por mes/);
+    assert.match(view.querySelector("[data-testid=plan-plus]").textContent, /\$6\.900/);
+    assert.equal(/Ahorrás 44%\s*<\/span>/.test(view.querySelector("[data-testid=plan-pro]").innerHTML), false);
+    assert.match(view.querySelector("[data-testid=plan-pro-year]").textContent, /\$100\.000/);
+    assert.equal(view.querySelector(".plans-toggle"), null);
+  }
   await win.happyDOM.abort();
 });
 
@@ -222,7 +240,16 @@ test("mi cuenta: Pro ve destacados y puede quitar uno; Gratis ve la invitación 
   await renderAccount(free, route(), await loginAs(IDS.carlos));
   assert.match(free.querySelector("[data-testid=plan-note]").textContent, /Plan\s*Gratis/);
   assert.equal(free.querySelector("[data-feature]"), null);
-  assert.match(free.textContent, /Vienen con el plan Pro/);
+  const cta = free.querySelector("[data-testid=plans-cta]");
+  assert.ok(cta);
+  assert.match(cta.textContent, /Pasá a Plus o Pro/);
+  assert.ok(cta.querySelector('a[href="#/planes"]'));
+  const feature = free.querySelector("[data-testid=feature-upsell]");
+  assert.ok(feature);
+  assert.match(feature.textContent, /Destacá tu aviso con Pro/);
+  assert.ok(feature.querySelector('a[href="#/planes"]'));
+  assert.equal(view.querySelector("[data-testid=plans-cta]"), null, "Pro no ve el banner de pasar de plan");
+  assert.equal(view.querySelector("[data-testid=feature-upsell]"), null);
   await win.happyDOM.abort();
 });
 
@@ -243,7 +270,8 @@ test("mi cuenta: las estadísticas quedan para Plus y Pro solo cuando se enciend
     document.body.append(gated);
     await renderAccount(gated, route(), await loginAs(IDS.carlos));
     assert.equal(gated.querySelector("[data-testid=stats-panel]"), null);
-    assert.ok(gated.querySelector("[data-testid=stats-locked]"));
+    assert.ok(gated.querySelector("[data-testid=plans-cta]"));
+    assert.match(gated.querySelector("[data-testid=plans-cta]").textContent, /Pasá a Plus o Pro/);
     const pro = document.createElement("div");
     document.body.append(pro);
     await renderAccount(pro, route(), await loginAs(IDS.marina));

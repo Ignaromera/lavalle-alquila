@@ -78,7 +78,8 @@ export async function renderAccount(view, route, session) {
     </section>
     ${isDemo() ? demoNoticeHtml() : ""}
     <p class="plan-note" data-testid="plan-note">Plan <strong>${esc(plan.name)}</strong> · ${esc(note.text)} ${note.cta ? `${esc(note.cta)} ` : ""}${turnero ? "El turnero está habilitado en tus quinchos y salones. " : ""}<a href="#/${plan.id === "free" ? "planes" : "suscripcion"}">${plan.id === "free" ? "Ver planes" : "Mi suscripción"}</a></p>
-    ${showStats ? statsPanelHtml(listings, seeks, stats, recentDays(7)) : statsLockedHtml()}
+    ${showStats ? statsPanelHtml(listings, seeks, stats, recentDays(7)) : ""}
+    ${plan.id === "pro" ? "" : plansCtaHtml(plan)}
     ${isPasswordRecovery() ? recoveryPasswordHtml() : ""}
     ${!session.profile.whatsapp ? `<p class="note">Para publicar, completá tu nombre y tu WhatsApp. Si entraste con Google, el nombre puede venir solo.</p>` : ""}
     <form class="stack profile-form" data-profile>
@@ -88,7 +89,7 @@ export async function renderAccount(view, route, session) {
     </form>
     ${isPasswordRecovery() ? "" : recoveryPasswordHtml()}
     <h2>Mis avisos</h2>
-    ${slots ? `<p class="fine" data-testid="featured-count">Destacados: ${featuredCount(listings)} de ${slots}. Un aviso destacado sale primero en las listas.</p>` : `<p class="fine">Los avisos destacados salen primero en las listas. Vienen con el plan Pro. <a href="#/planes">Ver planes</a></p>`}
+    ${slots ? `<p class="fine" data-testid="featured-count">Destacados: ${featuredCount(listings)} de ${slots}. Un aviso destacado sale primero en las listas.</p>` : featureUpsellHtml()}
     <div class="stack">
       ${listings.length ? listings.map((item) => ownerCard(item, ctx)).join("") : `<p class="empty">Todavía no publicaste. <a href="#/publicar">Publicá un aviso</a>.</p>`}
     </div>
@@ -131,11 +132,26 @@ export async function renderAccount(view, route, session) {
   void route;
 }
 
-function statsLockedHtml() {
-  return `<aside class="upsell" data-testid="stats-locked">
-    <h2>Tus números, con Plus o Pro</h2>
-    <p>Mirá cuántas visitas tiene cada aviso, cuántas veces lo compartieron y cuántos tocaron WhatsApp.</p>
+function plansCtaHtml(plan) {
+  if (plan.id === "plus") {
+    return `<aside class="upsell" data-testid="plans-cta">
+      <h2>Pasá a Pro</h2>
+      <p>Publicá sin tope, destacá hasta 2 avisos y sumá el turnero para quinchos y salones.</p>
+      <p><a class="btn btn-small btn-primary" href="#/planes">Ver el plan Pro</a></p>
+    </aside>`;
+  }
+  return `<aside class="upsell" data-testid="plans-cta">
+    <h2>Pasá a Plus o Pro</h2>
+    <p>Publicá más avisos, mirá las visitas de cada uno y, con Pro, destacá avisos y usá el turnero.</p>
     <p><a class="btn btn-small btn-primary" href="#/planes">Ver planes</a></p>
+  </aside>`;
+}
+
+function featureUpsellHtml() {
+  return `<aside class="upsell" data-testid="feature-upsell">
+    <h2>Destacá tu aviso con Pro</h2>
+    <p>Los avisos destacados salen primero en las listas. Con el plan Pro podés destacar hasta 2.</p>
+    <p><a class="btn btn-small btn-primary" href="#/planes">Ver el plan Pro</a></p>
   </aside>`;
 }
 

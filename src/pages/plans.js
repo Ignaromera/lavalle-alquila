@@ -14,9 +14,8 @@ function priceBlock(id, interval) {
   if (id === "free") return `<p class="plan-price"><strong>$0</strong> <span>para siempre</span></p>`;
   const save = yearlySavings(id);
   if (!hasYearly(id)) {
-    const note = interval === "year" ? "Solo mensual: este plan no tiene pago anual." : "Se cobra todos los meses.";
     return `<p class="plan-price"><strong>${formatArs(p.monthly)}</strong> <span>por mes</span></p>
-      <p class="fine">${note}</p>`;
+      <p class="fine">Se cobra todos los meses.</p>`;
   }
   if (interval === "year") {
     return `<p class="plan-price"><strong>${formatArs(p.yearly)}</strong> <span>por año</span></p>
@@ -37,15 +36,18 @@ function badges(id, interval) {
 function cardHtml(id, interval, current) {
   const p = PLANS[id];
   const isCurrent = current === id;
+  const testid = interval === "year" ? `plan-${id}-year` : `plan-${id}`;
   let action;
   if (id === "free") {
     action = isCurrent ? `<button type="button" class="btn btn-block" disabled>Tu plan actual</button>` : `<p class="fine">Volvés acá si cancelás o se vence tu suscripción.</p>`;
   } else if (isCurrent) {
     action = `<a class="btn btn-block" href="#/suscripcion">Tu plan actual · Mi suscripción</a>`;
+  } else if (interval === "year") {
+    action = `<button type="button" class="btn btn-block ${id === "pro" ? "btn-primary" : "btn-ghost"}" data-subscribe="${id}" data-interval="year">Suscribirme a ${esc(p.name)} por un año</button>`;
   } else {
-    action = `<button type="button" class="btn btn-block ${id === "pro" ? "btn-primary" : "btn-ghost"}" data-subscribe="${id}">Suscribirme a ${esc(p.name)}</button>`;
+    action = `<button type="button" class="btn btn-block ${id === "pro" ? "btn-primary" : "btn-ghost"}" data-subscribe="${id}" data-interval="month">Suscribirme a ${esc(p.name)}</button>`;
   }
-  return `<article class="plan-card${id === "pro" ? " plan-card-pro" : ""}${isCurrent ? " is-current" : ""}" data-plan="${id}" data-testid="plan-${id}">
+  return `<article class="plan-card${id === "pro" ? " plan-card-pro" : ""}${isCurrent ? " is-current" : ""}" data-plan="${id}" data-interval="${interval}" data-testid="${testid}">
     <div class="plan-top">
       <h2>${esc(p.name)}</h2>
       <div class="plan-badges">${badges(id, interval)}</div>
@@ -58,73 +60,67 @@ function cardHtml(id, interval, current) {
   </article>`;
 }
 
+function bindButtons(root) {
+  root.querySelectorAll("[data-subscribe]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const card = button.closest("[data-plan]");
+      const msg = card.querySelector("[data-msg]");
+      const show = (html) => { msg.innerHTML = html; msg.hidden = !html; };
+      show("");
+      const live = await getSession().catch(() => null);
+      if (!live) {
+        show(`Primero entrá a tu cuenta para suscribirte. <a href="#/cuenta">Entrar</a>`);
+        return;
+      }
+      const label = button.textContent;
+      button.disabled = true;
+      button.textContent = "Abriendo Mercado Pago…";
+      try {
+        const interval = intervalFor(button.dataset.subscribe, button.dataset.interval || "month");
+        const { init_point: url } = await startCheckout(button.dataset.subscribe, interval);
+        location.assign(url);
+      } catch (error) {
+        button.disabled = false;
+        button.textContent = label;
+        if (error.code === "proximamente") {
+          show(`<strong>Muy pronto.</strong> ${esc(error.message)} Mientras tanto seguís con tu plan actual.`);
+        } else {
+          show(esc(error.message || "No pudimos abrir el pago. Probá de nuevo en un rato."));
+        }
+      }
+    });
+  });
+}
+
 export async function renderPlans(view, route, session) {
-  let interval = route.params?.get("periodo") === "mensual" ? "month" : "year";
   const current = session ? planId(session.profile.plan) : "free";
+  const mark = session ? current : "";
+  const yearlyIds = PLAN_ORDER.filter((id) => hasYearly(id));
+  // El parámetro ?periodo= quedó de las pestañas viejas (el default era anual y
+  // escondía el Pro mensual). Se ignora: la página siempre arranca arriba, con los mensuales.
+  void route;
 
   view.innerHTML = `
     <section class="page-head">
       <h1 tabindex="-1">Planes</h1>
       <p class="lede">Publicá más avisos y mostrate mejor. Cambiás o cancelás cuando quieras.</p>
     </section>
-    <div class="segment plans-toggle" role="tablist" aria-label="Cada cuánto pagás">
-      <button type="button" class="seg" data-interval="month">Mensual</button>
-      <button type="button" class="seg" data-interval="year">Anual <small class="seg-badge">Ahorrás hasta 44%</small></button>
+    <div class="plans" data-plans data-testid="planes-mensuales">
+      ${PLAN_ORDER.map((id) => cardHtml(id, "month", mark)).join("")}
     </div>
-    <div class="plans" data-plans></div>
+    ${yearlyIds.length ? `
+    <section class="plans-yearly" data-testid="planes-anuales" aria-labelledby="planes-anuales-titulo">
+      <h2 id="planes-anuales-titulo">Pagá por año y ahorrá</h2>
+      <p>Un solo pago, el mismo plan, menos plata a lo largo del año.</p>
+      <div class="plans">
+        ${yearlyIds.map((id) => cardHtml(id, "year", mark)).join("")}
+      </div>
+    </section>` : ""}
     <aside class="plan-foot">
       <p><strong>Cómo se paga.</strong> En la página de Mercado Pago, con tarjeta de crédito o débito, y se renueva solo. No pedimos ni guardamos los datos de tu tarjeta. Podés cancelar cuando quieras desde ${session ? `<a href="#/suscripcion">Mi suscripción</a>` : "Mi suscripción"}.</p>
       <p class="fine">Precios en pesos argentinos. ${session ? "" : "Para suscribirte, primero entrá a tu cuenta."}</p>
     </aside>
     ${legalLinksHtml(sessionEmail(session))}`;
 
-  const grid = view.querySelector("[data-plans]");
-  const paint = () => {
-    grid.innerHTML = PLAN_ORDER.map((id) => cardHtml(id, interval, session ? current : "")).join("");
-    view.querySelectorAll("[data-interval]").forEach((button) => {
-      const on = button.dataset.interval === interval;
-      button.classList.toggle("is-on", on);
-      button.setAttribute("aria-selected", on ? "true" : "false");
-    });
-    bindButtons();
-  };
-
-  const bindButtons = () => {
-    grid.querySelectorAll("[data-subscribe]").forEach((button) => {
-      button.addEventListener("click", async () => {
-        const card = button.closest("[data-plan]");
-        const msg = card.querySelector("[data-msg]");
-        const show = (html) => { msg.innerHTML = html; msg.hidden = !html; };
-        show("");
-        const live = await getSession().catch(() => null);
-        if (!live) {
-          show(`Primero entrá a tu cuenta para suscribirte. <a href="#/cuenta">Entrar</a>`);
-          return;
-        }
-        const label = button.textContent;
-        button.disabled = true;
-        button.textContent = "Abriendo Mercado Pago…";
-        try {
-          const { init_point: url } = await startCheckout(button.dataset.subscribe, intervalFor(button.dataset.subscribe, interval));
-          location.assign(url);
-        } catch (error) {
-          button.disabled = false;
-          button.textContent = label;
-          if (error.code === "proximamente") {
-            show(`<strong>Muy pronto.</strong> ${esc(error.message)} Mientras tanto seguís con tu plan actual.`);
-          } else {
-            show(esc(error.message || "No pudimos abrir el pago. Probá de nuevo en un rato."));
-          }
-        }
-      });
-    });
-  };
-
-  view.querySelectorAll("[data-interval]").forEach((button) => {
-    button.addEventListener("click", () => {
-      interval = button.dataset.interval;
-      paint();
-    });
-  });
-  paint();
+  bindButtons(view);
 }

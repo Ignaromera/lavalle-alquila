@@ -32,6 +32,7 @@ export function regretMailto(email = "") {
 export function legalLinksHtml(email = "") {
   const base = import.meta.env?.BASE_URL || "./";
   return `<nav class="legal" aria-label="Información legal">
+    <a href="#/planes" data-testid="footer-planes">Planes</a>
     <a href="${base}privacidad.html">Política de privacidad</a>
     <a href="${base}terminos.html">Términos y condiciones</a>
     <a href="${regretMailto(email)}" data-regret data-testid="boton-arrepentimiento">Botón de arrepentimiento</a>

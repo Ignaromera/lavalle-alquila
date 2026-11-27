@@ -54,7 +54,7 @@ export async function renderPublish(view, route, session, hooks = {}) {
       <h1 tabindex="-1">${editingId ? "Editar aviso" : "Publicá tu aviso"}</h1>
       <p class="lede">En el teléfono, en un par de minutos. Sale publicado al toque: no hay aprobación previa.</p>
     </section>
-    <p class="plan-note" data-testid="plan-note">Plan <strong>${esc(plan.name)}</strong> · ${esc(note.text)} ${note.cta ? `${esc(note.cta)} <a href="#/planes">Ver planes</a>` : ""}</p>
+    <p class="plan-note" data-testid="plan-note">Plan <strong>${esc(plan.name)}</strong> · ${esc(note.text)} ${note.cta ? `${esc(note.cta)} ` : ""}${plan.id === "pro" ? "" : `<a href="#/planes">${plan.id === "plus" ? "Pasá a Pro" : "Ver planes"}</a>`}</p>
     ${isDemo() ? demoNoticeHtml() : ""}
     ${atLimit ? limitReachedHtml(plan, used) : ""}
     ${session ? "" : authBoxHtml()}
