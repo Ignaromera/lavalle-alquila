@@ -58,16 +58,26 @@ test("un aviso vencido no se ve y renovarlo lo devuelve", () => {
   assert.equal(publicListings(store, { kind: "housing" }).length, 1);
 });
 
-test("la tercera denuncia oculta el aviso", () => {
+test("solo las denuncias de cuentas distintas ocultan el aviso; las anónimas no", () => {
   const store = emptyStore();
   const person = addProfile(store, { full_name: "Eva Ríos", whatsapp: "2615550000" });
+  const a = addProfile(store, { full_name: "Ana", whatsapp: "2615550001" });
+  const b = addProfile(store, { full_name: "Beto", whatsapp: "2615550002" });
+  const c = addProfile(store, { full_name: "Cora", whatsapp: "2615550003" });
   const created = addListing(store, person.id, listingInput());
-  addReport(store, created.id, "v1", "estafa", "seña");
-  addReport(store, created.id, "v2", "falso", "");
-  assert.equal(publicListings(store, { kind: "housing" }).length, 1);
-  addReport(store, created.id, "v3", "otro", "");
+
+  addReport(store, created.id, "anon-1xx", "estafa", "seña");
+  addReport(store, created.id, "anon-2xx", "falso", "");
+  addReport(store, created.id, "anon-3xx", "otro", "");
+  assert.equal(publicListings(store, { kind: "housing" }).length, 1, "tres anónimas no tienen que ocultarlo");
+
+  addReport(store, created.id, "user-a-xx", "estafa", "", { reporterId: a.id });
+  addReport(store, created.id, "user-b-xx", "falso", "", { reporterId: b.id });
+  assert.equal(publicListings(store, { kind: "housing" }).length, 1, "dos con cuenta todavía no alcanzan");
+  addReport(store, created.id, "user-c-xx", "otro", "", { reporterId: c.id });
   assert.equal(publicListings(store, { kind: "housing" }).length, 0);
-  assert.throws(() => addReport(store, created.id, "v1", "otro", ""), /Ya denunciaste/);
+  assert.throws(() => addReport(store, created.id, "user-a-yy", "otro", "", { reporterId: a.id }), /Ya denunciaste/);
+  assert.throws(() => addReport(store, created.id, "owner-xxx", "otro", "", { reporterId: person.id }), /si es tuyo/i);
 });
 
 test("no se puede reservar dos veces el mismo turno", () => {

@@ -23,7 +23,7 @@ Está todo en [SETUP.md](SETUP.md): proyecto gratis de Supabase, SQL, login por 
 - Publicar desde el teléfono, con fotos achicadas antes de subirlas y el pin dentro de Lavalle.
 - Un aviso activo por cuenta gratis. El tope está en la base, no solo en la pantalla.
 - A los 60 días vence. Quien publicó lo renueva con un clic.
-- Tres denuncias ocultan el aviso. Hay una vista de moderación.
+- Las denuncias las revisa el equipo, que puede ocultar un aviso. Hay una vista de moderación.
 - «Busco alquiler», con el mismo vencimiento.
 - Quinchos y salones, con calendario de turnos. El aviso es gratis; el turnero es un extra que se prende con un flag (`booking_enabled` / `plan`) y todavía no se cobra.
 

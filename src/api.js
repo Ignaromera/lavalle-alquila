@@ -631,31 +631,32 @@ function reportInsertError(error, kind) {
   throw asError(error);
 }
 
+async function reportPayload(fields) {
+  const session = await getSession().catch(() => null);
+  const row = {
+    ...fields,
+    visitor_id: visitorId(),
+    details: fields.details || "",
+  };
+  if (session?.user?.id) row.reporter_id = session.user.id;
+  return { row, reporterId: session?.user?.id || null };
+}
+
 export async function reportListing(id, { reason, details }) {
-  const visitor = visitorId();
-  if (isDemo()) return demo.addReport(mem(), id, visitor, reason, details);
+  const { row, reporterId } = await reportPayload({ listing_id: id, reason, details: details || "" });
+  if (isDemo()) return demo.addReport(mem(), id, row.visitor_id, reason, details, { reporterId });
   // return=minimal: PostgREST no devuelve la fila. Solo un admin puede leer reports;
   // un insert con RETURNING fallaría para el resto.
-  const query = getClient().from("reports").insert({
-    listing_id: id,
-    visitor_id: visitor,
-    reason,
-    details: details || "",
-  });
+  const query = getClient().from("reports").insert(row);
   query.headers.set("Prefer", "return=minimal");
   const { error } = await query;
   if (error) reportInsertError(error, "listing");
 }
 
 export async function reportSeek(id, { reason, details }) {
-  const visitor = visitorId();
-  if (isDemo()) return demo.addReport(mem(), null, visitor, reason, details, { seekId: id });
-  const query = getClient().from("reports").insert({
-    seek_id: id,
-    visitor_id: visitor,
-    reason,
-    details: details || "",
-  });
+  const { row, reporterId } = await reportPayload({ seek_id: id, reason, details: details || "" });
+  if (isDemo()) return demo.addReport(mem(), null, row.visitor_id, reason, details, { seekId: id, reporterId });
+  const query = getClient().from("reports").insert(row);
   query.headers.set("Prefer", "return=minimal");
   const { error } = await query;
   if (error) reportInsertError(error, "seek");
@@ -904,7 +905,7 @@ export async function adminListings() {
   if (!session?.profile.is_admin) throw new Error("Esta sección es solo para el equipo de Lavalle Alquila.");
   const [listings, reports] = await Promise.all([
     getClient().from("listings").select("*").neq("status", "deleted").order("created_at", { ascending: false }),
-    getClient().from("reports").select("id, listing_id, seek_id, reason, details, created_at, resolved_at"),
+    getClient().from("reports").select("id, listing_id, seek_id, reason, details, created_at, resolved_at, reporter_id"),
   ]);
   if (listings.error) throw asError(listings.error);
   if (reports.error) throw asError(reports.error);
@@ -953,7 +954,7 @@ export async function adminReports() {
   const session = await getSession();
   if (!session?.profile.is_admin) throw new Error("Esta sección es solo para el equipo de Lavalle Alquila.");
   const [reports, listings, seeks] = await Promise.all([
-    getClient().from("reports").select("id, listing_id, seek_id, reason, details, created_at, resolved_at").order("created_at", { ascending: false }),
+    getClient().from("reports").select("id, listing_id, seek_id, reason, details, created_at, resolved_at, reporter_id").order("created_at", { ascending: false }),
     getClient().from("listings").select("id, title, status"),
     getClient().from("seeks").select("id, note, status"),
   ]);

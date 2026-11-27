@@ -378,9 +378,12 @@ export function createDemoStore() {
     id: `eeeeeeee-eeee-4eee-8eee-${String(n).padStart(12, "0")}`,
     listing_id: IDS.deptoJocoli,
     visitor_id: `visitante-ejemplo-${n}`,
+    reporter_id: n === 1 ? IDS.marina : n === 2 ? IDS.carlos : null,
     reason: n === 3 ? "falso" : "estafa",
     details: "Pide una seña por transferencia antes de mostrar el departamento.",
     created_at: addDays(-n).toISOString(),
+    resolved_at: null,
+    resolved_by: null,
   }));
 
   const seeks = [
@@ -725,7 +728,26 @@ export function renewListing(store, ownerId, listingId) {
   return hydrateListing(store, listing);
 }
 
-export function addReport(store, listingId, visitorId, reason, details, { seekId } = {}) {
+function alreadyReported(store, { listingId, seekId, visitorId, reporterId }) {
+  return store.reports.some((item) => {
+    if (listingId && item.listing_id !== listingId) return false;
+    if (seekId && item.seek_id !== seekId) return false;
+    if (!listingId && !seekId) return false;
+    if (item.visitor_id === visitorId) return true;
+    return !!(reporterId && item.reporter_id && item.reporter_id === reporterId);
+  });
+}
+
+function countedReports(store, listing) {
+  const ids = new Set(
+    store.reports
+      .filter((item) => item.listing_id === listing.id && !item.resolved_at && item.reporter_id && item.reporter_id !== listing.owner_id)
+      .map((item) => item.reporter_id),
+  );
+  return ids.size;
+}
+
+export function addReport(store, listingId, visitorId, reason, details, { seekId, reporterId = null } = {}) {
   assertReportReason(reason);
   if (!canReportAgain(store.reports, visitorId)) {
     throw new Error("Llegaste al límite de denuncias por hoy. Probá mañana.");
@@ -733,7 +755,8 @@ export function addReport(store, listingId, visitorId, reason, details, { seekId
   if (seekId) {
     const seek = store.seeks.find((item) => item.id === seekId && item.status !== "deleted");
     if (!seek) throw new Error("Esa búsqueda no está");
-    if (store.reports.some((item) => item.seek_id === seekId && item.visitor_id === visitorId)) {
+    if (reporterId && seek.owner_id === reporterId) throw new Error("No se pudo denunciar esta búsqueda. Si es tuya, no hace falta denunciarla.");
+    if (alreadyReported(store, { seekId, visitorId, reporterId })) {
       throw new Error("Ya denunciaste esta búsqueda. Gracias.");
     }
     store.reports.push({
@@ -741,6 +764,7 @@ export function addReport(store, listingId, visitorId, reason, details, { seekId
       listing_id: null,
       seek_id: seekId,
       visitor_id: visitorId,
+      reporter_id: reporterId || null,
       reason,
       details: clipReportDetails(details),
       created_at: new Date().toISOString(),
@@ -751,7 +775,8 @@ export function addReport(store, listingId, visitorId, reason, details, { seekId
   }
   const listing = store.listings.find((item) => item.id === listingId && item.status !== "deleted");
   if (!listing) throw new Error("Ese aviso no está");
-  if (store.reports.some((item) => item.listing_id === listingId && item.visitor_id === visitorId)) {
+  if (reporterId && listing.owner_id === reporterId) throw new Error("No se pudo denunciar este aviso. Si es tuyo, no hace falta denunciarlo.");
+  if (alreadyReported(store, { listingId, visitorId, reporterId })) {
     throw new Error("Ya denunciaste este aviso. Gracias.");
   }
   store.reports.push({
@@ -759,13 +784,14 @@ export function addReport(store, listingId, visitorId, reason, details, { seekId
     listing_id: listingId,
     seek_id: null,
     visitor_id: visitorId,
+    reporter_id: reporterId || null,
     reason,
     details: clipReportDetails(details),
     created_at: new Date().toISOString(),
     resolved_at: null,
     resolved_by: null,
   });
-  const count = store.reports.filter((item) => item.listing_id === listingId && !item.resolved_at).length;
+  const count = countedReports(store, listing);
   if (count >= 3 && listing.status === "active") {
     listing.status = "hidden";
     listing.hidden_reason = "reports";

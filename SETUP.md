@@ -153,7 +153,7 @@ Quien alquila marca qué días ofrece cada horario. Otra persona pide ese turno 
 - Las fotos se guardan en `listing-photos`, públicas, a nombre de quien las subió (`su-usuario/id-del-aviso/foto.jpg`).
 - El mapa usa teselas de OpenStreetMap. Para un sitio chico está bien. No scrapees el mapa ni lo uses como GPS de flota.
 - El contorno de Lavalle es el del departamento en OpenStreetMap, simplificado. Un punto justo sobre el límite puede quedar afuera. Si pasa con una calle real de Lavalle, se puede aflojar el polígono en `data/lavalle-boundary.json` y en `point_in_lavalle` dentro del SQL.
-- Cualquiera puede denunciar. Con tres denuncias el aviso se oculta. Alguien insistido puede esconder un aviso legítimo; por eso la moderación puede restaurarlo.
+- Cualquiera puede denunciar, con o sin cuenta. El equipo revisa las denuncias y puede ocultar o restaurar un aviso.
 - Los avisos vencen a los 60 días solos, porque el listado público pide `expires_at` futuro. No hay que programar un cron.
 
 ## Si algo no entra

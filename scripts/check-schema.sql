@@ -78,9 +78,40 @@ begin
     (house, 'visitante-2', 'estafa', 'No muestra la casa'),
     (house, 'visitante-3', 'falso', 'Las fotos son de otro lado');
 
-  if (select status from public.listings where id = house) <> 'hidden' then
-    raise exception 'Tres denuncias no ocultaron el aviso';
+  if (select status from public.listings where id = house) = 'hidden' then
+    raise exception 'Las denuncias anónimas no tienen que ocultar el aviso';
   end if;
+
+  insert into auth.users (id, email) values
+    ('aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1', 'r1@test.com'),
+    ('aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaa2', 'r2@test.com'),
+    ('aaaaaaa3-aaaa-4aaa-8aaa-aaaaaaaaaaa3', 'r3@test.com');
+
+  perform set_config('request.jwt.claim.sub', 'aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1', true);
+  perform set_config('request.jwt.claims', '{"sub":"aaaaaaa1-aaaa-4aaa-8aaa-aaaaaaaaaaa1","role":"authenticated"}', true);
+  insert into public.reports (listing_id, visitor_id, reason, details)
+  values (house, 'visitante-a1', 'estafa', 'Con cuenta 1');
+
+  perform set_config('request.jwt.claim.sub', 'aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaa2', true);
+  perform set_config('request.jwt.claims', '{"sub":"aaaaaaa2-aaaa-4aaa-8aaa-aaaaaaaaaaa2","role":"authenticated"}', true);
+  insert into public.reports (listing_id, visitor_id, reason, details)
+  values (house, 'visitante-a2', 'estafa', 'Con cuenta 2');
+
+  if (select status from public.listings where id = house) = 'hidden' then
+    raise exception 'Dos denuncias con cuenta no tienen que ocultar el aviso';
+  end if;
+
+  perform set_config('request.jwt.claim.sub', 'aaaaaaa3-aaaa-4aaa-8aaa-aaaaaaaaaaa3', true);
+  perform set_config('request.jwt.claims', '{"sub":"aaaaaaa3-aaaa-4aaa-8aaa-aaaaaaaaaaa3","role":"authenticated"}', true);
+  insert into public.reports (listing_id, visitor_id, reason, details)
+  values (house, 'visitante-a3', 'falso', 'Con cuenta 3');
+
+  if (select status from public.listings where id = house) <> 'hidden' then
+    raise exception 'Tres denuncias con cuenta distintas no ocultaron el aviso';
+  end if;
+
+  perform set_config('request.jwt.claim.sub', '', true);
+  perform set_config('request.jwt.claims', '', true);
 
   failed := false;
   begin

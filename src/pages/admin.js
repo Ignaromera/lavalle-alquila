@@ -80,7 +80,7 @@ function reportCard(report) {
   const done = !!report.resolved_at;
   const listing = report.subject_type === "listing";
   return `<article class="owner-card" data-testid="admin-report" data-resolved="${done ? "1" : "0"}">
-    <p class="eyebrow">${esc(reportReasonLabel(report.reason))}${report.subject_status ? ` · ${esc(report.subject_status)}` : ""} · ${esc(reportDay(report.created_at))}</p>
+    <p class="eyebrow">${esc(reportReasonLabel(report.reason))}${report.subject_status ? ` · ${esc(report.subject_status)}` : ""} · <span data-testid="report-origin">${report.reporter_id ? "Con cuenta" : "Anónima"}</span> · ${esc(reportDay(report.created_at))}</p>
     <h3><a href="${esc(report.subject_href)}">${esc(report.subject_title || "Publicación")}</a></h3>
     ${report.details ? `<p class="fine">${esc(report.details)}</p>` : ""}
     ${done ? `<p class="fine">Resuelta el ${esc(reportDay(report.resolved_at))}</p>` : `<div class="row-actions">

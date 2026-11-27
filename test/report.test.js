@@ -246,7 +246,8 @@ test("el formulario de denuncia trae los motivos pedidos", async () => {
     ["inapropiado", "Contenido inapropiado"],
     ["otro", "Otro"],
   ]);
-  assert.match(view.textContent, /No hace falta crear una cuenta/);
+  assert.match(view.textContent, /No hace falta crear una cuenta\. El equipo revisa cada denuncia/);
+  assert.doesNotMatch(view.textContent, /3 denuncias|tres denuncias|oculta solo/i);
   await win.happyDOM.abort();
 });
 
@@ -307,6 +308,9 @@ test("en demo, el panel lista denuncias y se pueden marcar resueltas u ocultar e
   assert.ok(list);
   assert.ok(view.querySelectorAll("[data-testid=admin-report]").length >= 3);
   assert.match(list.textContent, /Departamento casi regalado/);
+  const origins = [...view.querySelectorAll("[data-testid=report-origin]")].map((item) => item.textContent);
+  assert.ok(origins.includes("Anónima"));
+  assert.ok(origins.includes("Con cuenta"));
   const resolve = view.querySelector("[data-testid=resolve-report]");
   assert.ok(resolve);
   assert.ok(view.querySelector("[data-testid=hide-listing], [data-hide]"));

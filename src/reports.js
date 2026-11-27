@@ -51,9 +51,7 @@ export function canReportAgain(existing, visitorId, now = new Date()) {
 export function reportSheetHtml({ kind = "listing" } = {}) {
   const seek = kind === "seek";
   const title = seek ? "Denunciar búsqueda" : "Denunciar aviso";
-  const fine = seek
-    ? "No hace falta crear una cuenta. Revisamos cada denuncia."
-    : "No hace falta crear una cuenta. Con 3 denuncias el aviso se oculta solo, hasta que el equipo lo revise.";
+  const fine = "No hace falta crear una cuenta. El equipo revisa cada denuncia.";
   return `<div class="sheet-back" data-close-report hidden></div>
       <form class="sheet" data-report-form hidden>
         <div class="sheet-grab"></div>

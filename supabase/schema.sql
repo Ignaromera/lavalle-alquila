@@ -570,13 +570,14 @@ where l.status = 'active'
   and l.expires_at > now();
 
 -- ---------------------------------------------------------------------------
--- Denuncias: 3 y el aviso se oculta
+-- Denuncias y moderación
 -- ---------------------------------------------------------------------------
 
 create table public.reports (
   id uuid primary key default gen_random_uuid(),
   listing_id uuid references public.listings (id) on delete cascade,
   visitor_id text not null check (char_length(visitor_id) between 8 and 80),
+  reporter_id uuid references public.profiles (id) on delete set null,
   reason text not null check (reason in ('estafa', 'alquilado', 'falso', 'falso_alquilado', 'datos', 'inapropiado', 'otro')),
   details text not null default '' check (char_length(details) <= 500),
   created_at timestamptz not null default now(),
@@ -587,7 +588,11 @@ create table public.reports (
 create unique index reports_listing_visitor_uidx
   on public.reports (listing_id, visitor_id)
   where listing_id is not null;
+create unique index reports_listing_reporter_uidx
+  on public.reports (listing_id, reporter_id)
+  where listing_id is not null and reporter_id is not null;
 create index reports_listing_idx on public.reports (listing_id);
+create index reports_reporter_idx on public.reports (reporter_id) where reporter_id is not null;
 create index reports_unresolved_idx on public.reports (created_at desc) where resolved_at is null;
 
 create or replace function public.reports_before_insert()
@@ -598,6 +603,8 @@ as $$
 declare
   total integer;
 begin
+  -- Si hay sesión, el denunciante queda grabado acá. No se confía en lo que mande el cliente.
+  new.reporter_id := auth.uid();
   select count(*) into total
   from public.reports
   where visitor_id = new.visitor_id
@@ -625,10 +632,13 @@ begin
   if new.listing_id is null then
     return new;
   end if;
-  select count(*) into total
-  from public.reports
-  where listing_id = new.listing_id
-    and resolved_at is null;
+  select count(distinct r.reporter_id) into total
+  from public.reports r
+  join public.listings l on l.id = r.listing_id
+  where r.listing_id = new.listing_id
+    and r.resolved_at is null
+    and r.reporter_id is not null
+    and r.reporter_id is distinct from l.owner_id;
   if total >= 3 then
     perform set_config('lavalle.system', 'on', true);
     update public.listings
@@ -676,6 +686,9 @@ alter table public.reports
 create unique index reports_seek_visitor_uidx
   on public.reports (seek_id, visitor_id)
   where seek_id is not null;
+create unique index reports_seek_reporter_uidx
+  on public.reports (seek_id, reporter_id)
+  where seek_id is not null and reporter_id is not null;
 create index reports_seek_idx on public.reports (seek_id);
 
 create policy reports_insert on public.reports
@@ -683,6 +696,7 @@ create policy reports_insert on public.reports
   with check (
     reason in ('estafa', 'alquilado', 'falso', 'falso_alquilado', 'datos', 'inapropiado', 'otro')
     and char_length(visitor_id) between 8 and 80
+    and (reporter_id is null or reporter_id = auth.uid())
     and (
       (listing_id is not null and seek_id is null and not exists (
         select 1 from public.listings l
