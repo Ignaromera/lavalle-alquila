@@ -164,7 +164,8 @@ button.tab { appearance: none; background: transparent; border: 0; width: 100%; 
 .back .ico { width: 18px; height: 18px; }
 .detail { padding-bottom: 80px; }
 .gallery { position: relative; margin: 0 -20px; }
-.gallery-track { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 0 20px; scrollbar-width: none; }
+.gallery-track { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x mandatory; scroll-padding-left: 20px; padding: 0 20px; scrollbar-width: none; }
+.gallery.has-many .gallery-track::after { content: ""; flex: none; width: 14%; }
 .gallery-track::-webkit-scrollbar { display: none; }
 .gallery-track img { flex: none; width: 86%; aspect-ratio: 1 / 1.02; object-fit: cover; border-radius: var(--r-card); scroll-snap-align: start; background: var(--sand); }
 .gallery-track img:only-child { width: 100%; }
@@ -421,6 +422,7 @@ body.sheet-open { overflow: hidden; }
   .view { padding-top: 22px; }
   .gallery-track img { width: 62%; aspect-ratio: 4 / 3; }
   .gallery-track img:only-child { width: 100%; aspect-ratio: 16 / 9; }
+  .gallery.has-many .gallery-track::after { width: 38%; }
   .topbar { padding: 16px max(20px, calc((100% - 920px) / 2)) 6px; }
 }
 @media (prefers-reduced-motion: reduce) {

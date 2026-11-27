@@ -162,23 +162,30 @@ export async function renderDetail(view, route, session) {
 
 
 function bindGallery(view, total) {
+  const gallery = view.querySelector(".gallery");
   const track = view.querySelector(".gallery-track");
-  if (!track || total < 2) return;
+  if (!gallery || !track || total < 2) return;
 
   const dots = [...view.querySelectorAll("[data-gallery-dot]")];
   const countEl = view.querySelector("[data-testid=gallery-count]");
   const items = () => [...track.children];
   let current = 0;
+  let moving = 0;
 
   function currentFromScroll() {
     const list = items();
     if (!list.length) return 0;
     const origin = list[0].offsetLeft;
-    let index = 0;
+    let best = 0;
+    let bestDist = Infinity;
     list.forEach((item, i) => {
-      if (item.offsetLeft - origin - 20 <= track.scrollLeft + 10) index = i;
+      const dist = Math.abs(item.offsetLeft - origin - track.scrollLeft);
+      if (dist < bestDist) {
+        bestDist = dist;
+        best = i;
+      }
     });
-    return index;
+    return best;
   }
 
   function sync(index) {
@@ -196,12 +203,20 @@ function bindGallery(view, total) {
     if (!list.length) return;
     const next = ((index % list.length) + list.length) % list.length;
     const left = Math.max(0, list[next].offsetLeft - list[0].offsetLeft);
-    if (typeof track.scrollTo === "function") track.scrollTo({ left, behavior: "smooth" });
+    const token = ++moving;
+    const reduce = typeof matchMedia === "function" && matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (typeof track.scrollTo === "function") track.scrollTo({ left, behavior: reduce ? "auto" : "smooth" });
     else track.scrollLeft = left;
     sync(next);
+    const release = () => { if (moving === token) moving = 0; };
+    track.addEventListener("scrollend", release, { once: true });
+    setTimeout(release, 800);
   }
 
-  track.addEventListener("scroll", () => sync(currentFromScroll()), { passive: true });
+  track.addEventListener("scroll", () => {
+    if (moving) return;
+    sync(currentFromScroll());
+  }, { passive: true });
   view.querySelector("[data-testid=gallery-prev]")?.addEventListener("click", () => goTo(current - 1));
   view.querySelector("[data-testid=gallery-next]")?.addEventListener("click", () => goTo(current + 1));
   dots.forEach((dot) => {
@@ -211,7 +226,7 @@ function bindGallery(view, total) {
   if (view._galleryKeys) view._galleryKeys.abort();
   const keys = new AbortController();
   view._galleryKeys = keys;
-  document.addEventListener("keydown", (event) => {
+  const onKey = (event) => {
     if (!view.isConnected || !view.querySelector(".gallery.has-many")) {
       keys.abort();
       return;
@@ -222,7 +237,8 @@ function bindGallery(view, total) {
     if (document.body.classList.contains("sheet-open")) return;
     event.preventDefault();
     goTo(current + (event.key === "ArrowRight" ? 1 : -1));
-  }, { signal: keys.signal });
+  };
+  document.addEventListener("keydown", onKey, { signal: keys.signal, capture: true });
 }
 
 function priceHtml(listing) {
