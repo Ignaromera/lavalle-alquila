@@ -4,6 +4,7 @@ import * as demo from "./demo-store.js";
 import { applyFilters } from "./filter.js";
 import { clock, isoDay, normalizeWhatsapp } from "./format.js";
 import { claimDailyView } from "./stats.js";
+import { pickSubscription } from "./plans.js";
 import { compressImage, readDataUrl } from "./photos.js";
 
 const DEMO_KEY = "lavalle-demo-user";
@@ -83,6 +84,9 @@ function asError(error) {
   }
   if (/booking_requests_one_pending|en consulta/i.test(msg)) {
     return new Error("Ese turno ya está tomado o en consulta");
+  }
+  if (/Tu plan permite/i.test(msg)) {
+    return new Error(`${msg} Con Plus o Pro publicás más: mirá los planes.`);
   }
   return new Error(msg);
 }
@@ -689,8 +693,100 @@ export async function adminSetFlags(id, flags) {
   if (error) throw asError(error);
 }
 
+// ---------------------------------------------------------------------------
+// Planes y suscripciones
+// ---------------------------------------------------------------------------
+
+const COMING_SOON = "Los pagos se habilitan muy pronto. Todavía no se cobra nada.";
+
+function comingSoon(message = COMING_SOON) {
+  const error = new Error(message);
+  error.code = "proximamente";
+  return error;
+}
+
+/** Lee el cuerpo de error de una Edge Function (supabase-js lo deja en error.context). */
+async function functionError(error) {
+  let body = null;
+  try {
+    body = await error?.context?.json?.();
+  } catch {
+    body = null;
+  }
+  return body;
+}
+
+async function callFunction(name, body) {
+  const { data, error } = await getClient().functions.invoke(name, { body });
+  if (!error) return data;
+  const detail = await functionError(error);
+  const status = error?.context?.status;
+  // Función todavía sin desplegar, sin token de Mercado Pago o sin red: «próximamente», sin romper.
+  if (detail?.code === "proximamente" || status === 404 || status === 503 || !status) throw comingSoon(detail?.message);
+  const failure = new Error(detail?.message || "No pudimos completar la operación. Probá de nuevo en un rato.");
+  failure.code = detail?.code || "error";
+  throw failure;
+}
+
+/** Suscripción vigente de la persona (o null). Si la tabla todavía no existe, devuelve null. */
+export async function mySubscription() {
+  const session = await getSession();
+  if (!session) return null;
+  if (isDemo()) return demo.subscriptionFor(mem(), session.user.id);
+  const { data, error } = await getClient()
+    .from("subscriptions")
+    .select("id, plan_id, billing_interval, amount_ars, status, next_payment_at, last_paid_at, access_until, payment_failed_at, cancelled_at, created_at")
+    .order("created_at", { ascending: false });
+  if (error) return null;
+  return pickSubscription(data || []);
+}
+
+/** Pide el link de pago de Mercado Pago. Devuelve { init_point }. */
+export async function startCheckout(plan, interval) {
+  const session = await getSession();
+  if (!session) throw new Error("Entrá a tu cuenta para suscribirte.");
+  if (isDemo()) throw comingSoon("En el modo ejemplo no se cobra nada. Así se vería el paso a Mercado Pago.");
+  const data = await callFunction("crear-suscripcion", { action: "create", plan, interval });
+  if (!data?.init_point) throw comingSoon();
+  return data;
+}
+
+export async function cancelMySubscription() {
+  const session = await getSession();
+  if (!session) throw new Error("Entrá a tu cuenta.");
+  if (isDemo()) {
+    demo.cancelSubscription(mem(), session.user.id);
+    return { ok: true };
+  }
+  return callFunction("crear-suscripcion", { action: "cancel" });
+}
+
+/** Le pregunta a Mercado Pago cómo está el pago, por si algún aviso no llegó. Nunca falla. */
+export async function syncSubscription() {
+  if (isDemo()) return;
+  try {
+    await getClient().functions.invoke("mp-webhook", { body: { action: "sync" } });
+  } catch {
+    /* sin función o sin red: no pasa nada */
+  }
+}
+
+/** Destacar o sacar el destacado de un aviso propio (plan Pro). */
+export async function setFeatured(id, on) {
+  const session = await getSession();
+  if (!session) throw new Error("Entrá a tu cuenta.");
+  if (isDemo()) return demo.setFeatured(mem(), session.user.id, id, on);
+  const { error } = await getClient().rpc("set_featured", { p_id: id, p_on: !!on });
+  if (error) {
+    if (/set_featured|PGRST202|42883|schema cache/i.test(`${error.code} ${error.message}`)) {
+      throw comingSoon("Los avisos destacados se habilitan muy pronto.");
+    }
+    throw asError(error);
+  }
+}
+
 export const DEMO_LOGIN = [
-  { id: demo.IDS.marina, label: "Marina López", detail: "Plan pro de ejemplo, con quincho y turnero" },
+  { id: demo.IDS.marina, label: "Marina López", detail: "Plan Pro anual de ejemplo: avisos ilimitados, turnero y destacados" },
   { id: demo.IDS.carlos, label: "Carlos Pereyra", detail: "Plan gratis, un solo aviso activo" },
   { id: demo.IDS.rosa, label: "Rosa Méndez", detail: "Salón sin turnero" },
   { id: demo.IDS.pedro, label: "Pedro Álvarez", detail: "Publicó un busco alquiler" },

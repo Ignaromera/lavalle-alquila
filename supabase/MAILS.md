@@ -15,3 +15,9 @@ Se mandan por Resend (dominio lavallealquila.com.ar verificado, SMTP de Supabase
 Asuntos: confirmación «Confirmá tu mail en Lavalle Alquila»; contraseña «Recuperá tu contraseña de Lavalle Alquila»;
 magic link «Tu link para entrar a Lavalle Alquila»; cambio de mail «Confirmá tu nuevo mail en Lavalle Alquila»;
 bienvenida «Te damos la bienvenida a Lavalle Alquila»; aviso «Tu aviso ya está publicado».
+
+## Mails de suscripción
+
+- `emails/07-suscripcion-activa.html`, `08-pago-fallido.html`, `09-suscripcion-cancelada.html` y `10-plan-terminado.html`: los cuatro mails nuevos. Se generan con `python3 emails/generar_suscripciones.py` a partir del 04.
+- Los manda `enviar-mail` (se regenera con `build_function.py`) cuando `migration-suscripciones.sql` dispara el trigger sobre `subscriptions`. Tipos: `subscription_active`, `payment_failed`, `subscription_cancelled`, `plan_ended`.
+- Asuntos: «Tu plan {Plus|Pro} está activo», «No pudimos cobrar tu suscripción», «Cancelaste tu suscripción», «Volviste al plan Gratis».

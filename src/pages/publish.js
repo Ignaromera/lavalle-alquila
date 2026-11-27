@@ -16,7 +16,19 @@ import { esc, parseMoney } from "../format.js";
 import { AMENITIES, HOUSING_TYPES, VENUE_TYPES, isVenue, pointInLavalle } from "../geo.js";
 import { mountMap } from "../map.js";
 import { photoUrl } from "../api.js";
+import { activeCount, canPublishMore, planNote, planOf } from "../plans.js";
 import { toast } from "../toast.js";
+
+function limitReachedHtml(plan, used) {
+  const next = plan.id === "free"
+    ? "Con Plus publicás hasta 3 avisos; con Pro, todos los que quieras."
+    : "Con el plan Pro publicás todos los avisos que quieras.";
+  return `<div class="error limit" data-testid="limit-reached">
+    <p>Ya tenés ${used} aviso${used === 1 ? "" : "s"} activo${used === 1 ? "" : "s"}, el máximo de tu plan ${esc(plan.name)}. Marcá uno como alquilado o eliminalo para publicar otro.</p>
+    <p>${esc(next)}</p>
+    <p><a class="btn btn-small btn-primary" href="#/planes">Ver planes</a></p>
+  </div>`;
+}
 
 export async function renderPublish(view, route, session, hooks = {}) {
   const editingId = route.parts[1] || "";
@@ -30,9 +42,11 @@ export async function renderPublish(view, route, session, hooks = {}) {
   }
   const loadMine = hooks.loadListings || myListings;
   const mine = session ? await loadMine() : [];
-  const used = mine.filter((item) => (item.status === "active" || item.status === "hidden") && new Date(item.expires_at) > new Date() && item.id !== editingId).length;
+  const used = activeCount(mine, { exceptId: editingId });
   const max = session?.profile.max_listings ?? 1;
-  const plan = session?.profile.plan === "pro" ? "pro" : "gratis";
+  const plan = planOf(session?.profile);
+  const note = planNote(session?.profile || { plan: "free", max_listings: 1 }, session ? used : null);
+  const atLimit = !!session && !editingId && !canPublishMore(used, max);
   const kind = existing && isVenue(existing.type) ? "venue" : "housing";
   const profileReady = !!(session?.profile.full_name && session?.profile.whatsapp);
   view.innerHTML = `
@@ -40,9 +54,9 @@ export async function renderPublish(view, route, session, hooks = {}) {
       <h1 tabindex="-1">${editingId ? "Editar aviso" : "Publicá tu aviso"}</h1>
       <p class="lede">En el teléfono, en un par de minutos. Sale publicado al toque: no hay aprobación previa.</p>
     </section>
-    <p class="plan-note">Plan <strong>${plan}</strong> · hasta ${max} aviso${max === 1 ? "" : "s"} activo${max === 1 ? "" : "s"}. Más adelante vas a poder ampliarlo.</p>
+    <p class="plan-note" data-testid="plan-note">Plan <strong>${esc(plan.name)}</strong> · ${esc(note.text)} ${note.cta ? `${esc(note.cta)} <a href="#/planes">Ver planes</a>` : ""}</p>
     ${isDemo() ? demoNoticeHtml() : ""}
-    ${session && used >= max && !editingId ? `<p class="error">Ya tenés ${used} aviso${used === 1 ? "" : "s"} activo${used === 1 ? "" : "s"}. Marcá uno como alquilado o eliminalo para publicar otro. La base también lo frena.</p>` : ""}
+    ${atLimit ? limitReachedHtml(plan, used) : ""}
     ${session ? "" : authBoxHtml()}
     ${!session ? demoLoginsHtml(DEMO_LOGIN) : ""}
     <form class="stack" data-testid="publish-form" novalidate>
@@ -120,7 +134,7 @@ export async function renderPublish(view, route, session, hooks = {}) {
         <p class="fine" data-pin>${existing ? "Ubicación marcada dentro de Lavalle." : "Todavía no marcaste el punto."}</p>
       </div>
       <p class="error" data-form-error hidden></p>
-      <button class="btn btn-primary btn-block" type="submit">${editingId ? "Guardar cambios" : "Publicar aviso"}</button>
+      <button class="btn btn-primary btn-block" type="submit"${atLimit ? " disabled" : ""}>${editingId ? "Guardar cambios" : atLimit ? "Llegaste al tope de tu plan" : "Publicar aviso"}</button>
     </form>`;
 
   const form = view.querySelector("[data-testid=publish-form]");
@@ -214,7 +228,7 @@ export async function renderPublish(view, route, session, hooks = {}) {
   });
   paintOffers();
 
-  const willTurnero = !!(session?.profile.booking_enabled || session?.profile.plan === "pro");
+  const willTurnero = !!(session?.profile.booking_enabled || plan.turnero);
   const paintUpsell = () => {
     upsell.innerHTML = currentKind === "venue" && !willTurnero ? upsellHtml() : "";
   };

@@ -1,6 +1,7 @@
 // Edge Function «enviar-mail» de Lavalle Alquila.
 // La llaman los triggers de la base (pg_net) con el header x-webhook-secret.
-// Manda por Resend (API HTTP) el mail de bienvenida y el de «aviso publicado».
+// Manda por Resend (API HTTP) los mails de bienvenida, «aviso publicado» y los 4 de suscripción
+// (subscription_started, payment_failed, subscription_cancelled, subscription_ended).
 // Secrets necesarios: RESEND_API_KEY, WEBHOOK_SECRET.
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY ya los inyecta Supabase solo.
 // Desplegar SIN verificación de JWT (la autenticación es el secreto compartido).
@@ -18,7 +19,62 @@ const TEMPLATES: Record<string, { subject: string; html: string }> = {
     subject: "Tu aviso ya está publicado",
     html: __HTML_PUBLISHED__,
   },
+  subscription_started: {
+    subject: "Tu plan {{PLAN}} está activo",
+    html: __HTML_SUB_STARTED__,
+  },
+  payment_failed: {
+    subject: "No pudimos cobrar tu suscripción",
+    html: __HTML_SUB_FAILED__,
+  },
+  subscription_cancelled: {
+    subject: "Cancelaste tu suscripción",
+    html: __HTML_SUB_CANCELLED__,
+  },
+  subscription_ended: {
+    subject: "Volviste al plan Gratis",
+    html: __HTML_SUB_ENDED__,
+  },
 };
+
+const SUB_KINDS = new Set(["subscription_started", "payment_failed", "subscription_cancelled", "subscription_ended"]);
+const PLAN_NAMES: Record<string, string> = { free: "Gratis", plus: "Plus", pro: "Pro" };
+const GRACE_DAYS = 3; // mismo número que supabase/migration-suscripciones.sql y src/plans.js
+
+function ars(n: unknown): string {
+  const v = Math.round(Number(n));
+  return Number.isFinite(v) && v > 0 ? "$" + String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ".") : "";
+}
+
+// «12 de diciembre de 2026» en hora de Argentina; vacío si la fecha no sirve.
+function longDate(iso: unknown, minusDays = 0): string {
+  const t = new Date(String(iso ?? "")).getTime();
+  if (!Number.isFinite(t)) return "";
+  return new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "long", year: "numeric", timeZone: "America/Argentina/Mendoza" })
+    .format(new Date(t - minusDays * 86400000));
+}
+
+function subscriptionVars(kind: string, p: Record<string, unknown>): Record<string, string> {
+  const plan = PLAN_NAMES[String(p.plan ?? "")] ?? "";
+  let frase = "";
+  if (kind === "subscription_started") {
+    const d = longDate(p.until, GRACE_DAYS);
+    frase = d ? `La próxima renovación es el ${d}.` : "";
+  } else if (kind === "payment_failed") {
+    const d = longDate(p.until);
+    frase = d ? `Mientras tanto, tu plan sigue activo hasta el ${d}.` : "";
+  } else if (kind === "subscription_cancelled") {
+    const d = longDate(p.until);
+    frase = d ? `Tu plan sigue activo hasta el ${d}.` : "";
+  }
+  return {
+    PLAN: plan,
+    PERIODO: p.interval === "year" ? "por año" : "por mes",
+    IMPORTE: ars(p.amount),
+    FRASE: frase,
+    LINK: kind === "subscription_ended" ? `${SITE}/#/planes` : `${SITE}/#/suscripcion`,
+  };
+}
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -86,7 +142,7 @@ Deno.serve(async (req) => {
   const got = req.headers.get("x-webhook-secret") ?? "";
   if (req.method !== "POST" || !secret || !same(got, secret)) return json({ error: "no autorizado" }, 401);
 
-  let payload: { type?: string; user_id?: string; listing_id?: string; owner_id?: string; title?: string };
+  let payload: { type?: string; user_id?: string; listing_id?: string; owner_id?: string; title?: string; plan?: string; interval?: string; amount?: number; until?: string };
   try { payload = await req.json(); } catch { return json({ error: "json inválido" }, 400); }
 
   const apiKey = Deno.env.get("RESEND_API_KEY");
@@ -120,6 +176,9 @@ Deno.serve(async (req) => {
     } else if (!userId) {
       return json({ error: "aviso no encontrado" }, 404);
     }
+  } else if (kind && SUB_KINDS.has(kind)) {
+    if (!payload.user_id || !UUID.test(payload.user_id)) return json({ error: "user_id inválido" }, 400);
+    userId = payload.user_id;
   } else {
     return json({ error: "tipo desconocido" }, 400);
   }
@@ -134,12 +193,14 @@ Deno.serve(async (req) => {
   if (p?.full_name) name = firstName(p.full_name);
 
   const tpl = TEMPLATES[kind!];
-  const html = fill(tpl.html, { NOMBRE: esc(name), TITULO_AVISO: esc(title), LINK_AVISO: link }, name);
+  const extra = SUB_KINDS.has(kind!) ? subscriptionVars(kind!, payload as Record<string, unknown>) : {};
+  const html = fill(tpl.html, { NOMBRE: esc(name), TITULO_AVISO: esc(title), LINK_AVISO: link, ...extra }, name);
+  const subject = tpl.subject.split("{{PLAN}}").join(extra.PLAN ?? "");
 
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
-    body: JSON.stringify({ from: FROM, to: [email], subject: tpl.subject, html }),
+    body: JSON.stringify({ from: FROM, to: [email], subject, html }),
   });
   if (!r.ok) {
     console.error("Resend", r.status, await r.text());

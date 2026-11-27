@@ -9,8 +9,10 @@ import { renderAdmin } from "./pages/admin.js";
 import { renderDetail } from "./pages/detail.js";
 import { renderHome, renderVenues } from "./pages/home.js";
 import { renderMap } from "./pages/map.js";
+import { renderPlans } from "./pages/plans.js";
 import { renderPublish } from "./pages/publish.js";
 import { renderSeek, renderSeekNew, renderSeeks } from "./pages/seeks.js";
+import { renderSubscription } from "./pages/subscription.js";
 import { givenName } from "./format.js";
 import { resetPageMeta } from "./meta.js";
 import { parseRoute } from "./router.js";
@@ -25,6 +27,8 @@ const TITLES = {
   seek: "Búsqueda",
   "seek-new": "Publicar búsqueda",
   account: "Mi cuenta",
+  plans: "Planes",
+  subscription: "Mi suscripción",
   admin: "Moderación",
   turnero: "Turnero",
 };
@@ -39,6 +43,8 @@ const routes = {
   seek: renderSeek,
   "seek-new": renderSeekNew,
   account: renderAccount,
+  plans: renderPlans,
+  subscription: renderSubscription,
   admin: renderAdmin,
   turnero: renderOwnerTurnero,
 };
@@ -49,7 +55,7 @@ function shell(route, session) {
   const base = import.meta.env.BASE_URL;
   const name = givenName(session?.profile?.full_name);
   const tab = (id, href, label, glyph) => {
-    const on = route.name === id;
+    const on = route.name === id || (id === "account" && (route.name === "plans" || route.name === "subscription"));
     return `<a class="tab${on ? " is-on" : ""}${glyph === "plus" ? " tab-plus" : ""}" href="${href}" ${on ? 'aria-current="page"' : ""}>${icon(glyph)}<span>${label}</span></a>`;
   };
   return `

@@ -14,6 +14,12 @@ export const config = {
    * Quien autoriza de verdad es la base, no esta lista.
    */
   adminEmails: ["jirfcarp@gmail.com"],
+  /**
+   * Poné true cuando Mercado Pago ya esté conectado (MP_ACCESS_TOKEN cargado y las
+   * funciones desplegadas). Hasta entonces el plan gratis conserva las estadísticas
+   * que ya tenía y el botón «Suscribirme» avisa que los pagos llegan pronto.
+   */
+  billingLive: false,
 };
 
 export function isConfigured() {

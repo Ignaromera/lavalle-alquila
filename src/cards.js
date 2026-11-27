@@ -47,7 +47,8 @@ export function listingCard(listing) {
 
 export function upsellHtml() {
   return `<aside class="upsell" data-testid="turnero-upsell">
-    <h2>Activá el turnero (próximamente, servicio pago)</h2>
-    <p>Publicar el quincho o el salón es gratis. El calendario para que te reserven el día o el turno es un extra que vamos a habilitar más adelante. Mientras tanto, la consulta es por WhatsApp.</p>
+    <h2>El turnero viene con el plan Pro</h2>
+    <p>Publicar el quincho o el salón es gratis. Con el plan Pro sumás el calendario para que te reserven el día o el turno, avisos ilimitados y destacados. Mientras tanto, la consulta es por WhatsApp.</p>
+    <p><a class="btn btn-small btn-primary" href="#/planes">Ver el plan Pro</a></p>
   </aside>`;
 }

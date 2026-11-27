@@ -106,9 +106,11 @@ La primera vez puede tardar un par de minutos. Si ves el cartel de modo ejemplo,
 4. Desde otro navegador, denunciá el mismo aviso tres veces (o con tres visitas distintas). A la tercera desaparece del listado.
 5. Entrá con el email admin y abrí **Moderación**. Ahí podés restaurar, quitar, destacar o prender el turnero.
 
-## Destacados y turnero, sin cobrar todavía
+## Planes y suscripciones (Mercado Pago)
 
-No hay Mercado Pago ni ningún otro cobro. Los ganchos ya están en la base para cuando quieras sumarlo:
+Hay tres planes: Gratis (1 aviso), Plus (3 avisos, estadísticas) y Pro (avisos ilimitados, turnero, 2 destacados). Se cobran con Mercado Pago Suscripciones. Los pasos para activarlo (SQL, funciones, secrets) están en `supabase/SUSCRIPCIONES.md`. Hasta que se cargue `MP_ACCESS_TOKEN` y `billingLive` pase a `true` en `src/config.js`, el botón «Suscribirme» avisa que viene muy pronto.
+
+Los ganchos de abajo siguen valiendo (la suscripción los completa sola, y `profiles.plan` ahora admite también `plus`; el ilimitado se guarda como `max_listings = 1000`):
 
 | Qué | Dónde | Para qué |
 | --- | --- | --- |

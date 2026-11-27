@@ -9,6 +9,7 @@ import {
   myStats,
   renewListing,
   setBookingStatus,
+  setFeatured,
   setListingStatus,
   signInDemo,
   signOut,
@@ -23,6 +24,7 @@ import { bindSeekActions, seekOwnerCard } from "./seeks.js";
 import { confirmWaText, esc, formatDay, formatWhen, givenName, priceLabel, shiftLabel, typeLabel, waLink } from "../format.js";
 import { isVenue } from "../geo.js";
 import { bindTurnero, calFor, turneroHtml } from "../turnero-ui.js";
+import { activeCount, canFeature, featuredCount, featuredSlots, planNote, planOf } from "../plans.js";
 import { recentDays } from "../stats.js";
 import { statsPanelHtml } from "../stats-ui.js";
 import { toast } from "../toast.js";
@@ -57,16 +59,20 @@ export async function renderAccount(view, route, session) {
   }
 
   const [listings, seeks, requests, stats] = await Promise.all([myListings(), mySeeks(), myBookingRequests(), myStats()]);
-  const plan = session.profile.plan === "pro" ? "pro" : "gratis";
-  const turnero = session.profile.booking_enabled || session.profile.plan === "pro";
+  const plan = planOf(session.profile);
+  const turnero = session.profile.booking_enabled || plan.turnero;
+  const note = planNote(session.profile, activeCount(listings));
+  const slots = featuredSlots(session.profile);
+  const ctx = { slots, profile: session.profile, listings };
+  const showStats = plan.stats || !config.billingLive;
   view.innerHTML = `
     <section class="page-head">
       <h1 tabindex="-1">Hola, ${esc(givenName(session.profile.full_name) || "vecino")}</h1>
       <p class="lede">${esc(session.profile.email || "")}</p>
     </section>
     ${isDemo() ? demoNoticeHtml() : ""}
-    <p class="plan-note">Plan <strong>${plan}</strong> · hasta ${esc(session.profile.max_listings)} aviso(s) activo(s). ${turnero ? "El turnero está habilitado en tus quinchos y salones nuevos." : "El turnero no está incluido en este plan."}</p>
-    ${statsPanelHtml(listings, seeks, stats, recentDays(7))}
+    <p class="plan-note" data-testid="plan-note">Plan <strong>${esc(plan.name)}</strong> · ${esc(note.text)} ${note.cta ? `${esc(note.cta)} ` : ""}${turnero ? "El turnero está habilitado en tus quinchos y salones. " : ""}<a href="#/${plan.id === "free" ? "planes" : "suscripcion"}">${plan.id === "free" ? "Ver planes" : "Mi suscripción"}</a></p>
+    ${showStats ? statsPanelHtml(listings, seeks, stats, recentDays(7)) : statsLockedHtml()}
     ${!session.profile.whatsapp ? `<p class="note">Para publicar, completá tu nombre y tu WhatsApp. Si entraste con Google, el nombre puede venir solo.</p>` : ""}
     <form class="stack profile-form" data-profile>
       <label class="field">Nombre<input name="full_name" required value="${esc(session.profile.full_name)}" /></label>
@@ -74,8 +80,9 @@ export async function renderAccount(view, route, session) {
       <button class="btn btn-ghost" type="submit">Guardar perfil</button>
     </form>
     <h2>Mis avisos</h2>
+    ${slots ? `<p class="fine" data-testid="featured-count">Destacados: ${featuredCount(listings)} de ${slots}. Un aviso destacado sale primero en las listas.</p>` : `<p class="fine">Los avisos destacados salen primero en las listas. Vienen con el plan Pro. <a href="#/planes">Ver planes</a></p>`}
     <div class="stack">
-      ${listings.length ? listings.map(ownerCard).join("") : `<p class="empty">Todavía no publicaste. <a href="#/publicar">Publicá un aviso</a>.</p>`}
+      ${listings.length ? listings.map((item) => ownerCard(item, ctx)).join("") : `<p class="empty">Todavía no publicaste. <a href="#/publicar">Publicá un aviso</a>.</p>`}
     </div>
     <h2>Pedidos del turnero</h2>
     <div class="stack" data-testid="booking-requests">
@@ -113,11 +120,19 @@ export async function renderAccount(view, route, session) {
   void route;
 }
 
-function ownerCard(listing) {
+function statsLockedHtml() {
+  return `<aside class="upsell" data-testid="stats-locked">
+    <h2>Tus números, con Plus o Pro</h2>
+    <p>Mirá cuántas visitas tiene cada aviso, cuántas veces lo compartieron y cuántos tocaron WhatsApp.</p>
+    <p><a class="btn btn-small btn-primary" href="#/planes">Ver planes</a></p>
+  </aside>`;
+}
+
+function ownerCard(listing, ctx = { slots: 0, profile: null, listings: [] }) {
   const venue = isVenue(listing.type);
   const expired = listing.status === "active" && new Date(listing.expires_at) <= new Date();
   return `<article class="owner-card">
-    <p class="eyebrow">${esc(typeLabel(listing.type))} · ${esc(listing.district)}</p>
+    <p class="eyebrow">${esc(typeLabel(listing.type))} · ${esc(listing.district)}${listing.featured ? ' · <span class="badge badge-gold">Destacado</span>' : ""}</p>
     <h3>${esc(listing.title)}</h3>
     <p class="price">${esc(priceLabel(listing))}</p>
     <p class="fine">${esc(listing.status === "rented" ? (venue ? "No disponible" : "Alquilado") : listing.status === "hidden" ? "Oculto, en revisión" : expired ? "Vencido" : formatWhen(listing.expires_at))}</p>
@@ -128,9 +143,18 @@ function ownerCard(listing) {
       ${listing.status === "active" ? `<button type="button" class="btn btn-small btn-ghost" data-status="rented" data-id="${esc(listing.id)}">${venue ? "Marcar no disponible" : "Marcar como alquilado"}</button>` : ""}
       ${listing.status === "rented" ? `<button type="button" class="btn btn-small" data-status="active" data-id="${esc(listing.id)}">Volver a publicar</button>` : ""}
       ${venue && listing.booking_enabled ? `<a class="btn btn-small" href="#/turnero/${esc(listing.id)}">Turnero</a>` : ""}
+      ${featureButton(listing, ctx)}
       <button type="button" class="btn btn-small btn-danger" data-status="deleted" data-id="${esc(listing.id)}">Eliminar</button>
     </div>
   </article>`;
+}
+
+function featureButton(listing, ctx) {
+  if (!ctx.slots && !listing.featured) return "";
+  if (listing.featured) return `<button type="button" class="btn btn-small btn-ghost" data-feature="${esc(listing.id)}" data-on="0">Quitar destacado</button>`;
+  const check = canFeature(ctx.profile, ctx.listings, listing);
+  if (check.reason === "inactive" || check.reason === "plan") return "";
+  return `<button type="button" class="btn btn-small" data-feature="${esc(listing.id)}" data-on="1"${check.ok ? "" : " disabled"}>${check.ok ? "Destacar" : "Destacados completos"}</button>`;
 }
 
 function requestCard(request) {
@@ -155,6 +179,20 @@ function bindListingActions(root) {
         toast("Aviso renovado por 60 días.");
         render();
       } catch (error) {
+        toast(error.message);
+      }
+    });
+  });
+  root.querySelectorAll("[data-feature]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const on = button.dataset.on === "1";
+      button.disabled = true;
+      try {
+        await setFeatured(button.dataset.feature, on);
+        toast(on ? "Listo, tu aviso sale destacado." : "Aviso sin destacar.");
+        render({ scroll: false });
+      } catch (error) {
+        button.disabled = false;
         toast(error.message);
       }
     });

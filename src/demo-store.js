@@ -1,6 +1,7 @@
 import { applyFilters } from "./filter.js";
 import { addDays, clock, hoursLabel, isoDay, normalizeWhatsapp, plusDaysISO } from "./format.js";
 import { AMENITY_IDS, DISTRICT_NAMES, isVenue, pointInLavalle } from "./geo.js";
+import { PLANS, UNLIMITED, featuredCount, pickSubscription, planId } from "./plans.js";
 
 export const IDS = {
   marina: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
@@ -65,7 +66,7 @@ export function createDemoStore() {
       whatsapp: "5492615550101",
       email: "marina@ejemplo.test",
       plan: "pro",
-      max_listings: 5,
+      max_listings: UNLIMITED,
       booking_enabled: true,
     }),
     profile({
@@ -406,7 +407,21 @@ export function createDemoStore() {
     },
   ];
 
-  const store = { profiles, listings, slots, requests, reports, seeks, stats: [] };
+  const subscriptions = [
+    {
+      id: "dddddddd-dddd-4ddd-8ddd-000000000001",
+      user_id: IDS.marina,
+      plan_id: "pro",
+      billing_interval: "year",
+      amount_ars: PLANS.pro.yearly,
+      status: "authorized",
+      created_at: addDays(-40).toISOString(),
+      last_paid_at: addDays(-40).toISOString(),
+      access_until: addDays(325).toISOString(),
+      payment_failed_at: null,
+    },
+  ];
+  const store = { profiles, listings, slots, requests, reports, seeks, stats: [], subscriptions };
   seedStats(store);
   return store;
 }
@@ -461,7 +476,7 @@ export function statsForOwner(store, ownerId) {
 }
 
 export function emptyStore() {
-  return { profiles: [], listings: [], slots: [], requests: [], reports: [], seeks: [], stats: [] };
+  return { profiles: [], listings: [], slots: [], requests: [], reports: [], seeks: [], stats: [], subscriptions: [] };
 }
 
 function findProfile(store, id) {
@@ -965,5 +980,39 @@ export function adminSetFlags(store, listingId, flags) {
     }
     listing.booking_enabled = Boolean(flags.booking_enabled);
   }
+  return hydrateListing(store, listing);
+}
+
+export function subscriptionFor(store, userId) {
+  return pickSubscription((store.subscriptions || []).filter((row) => row.user_id === userId));
+}
+
+export function cancelSubscription(store, userId) {
+  const sub = subscriptionFor(store, userId);
+  if (!sub || sub.status !== "authorized") throw new Error("No tenés una suscripción para cancelar.");
+  sub.status = "cancelled";
+  sub.cancelled_at = new Date().toISOString();
+  return sub;
+}
+
+/** Destacar un aviso propio. El tope sale del plan, igual que en la base. */
+export function setFeatured(store, ownerId, listingId, on) {
+  const listing = store.listings.find((item) => item.id === listingId && item.owner_id === ownerId);
+  if (!listing) throw new Error("No autorizado");
+  if (!on) {
+    listing.featured = false;
+    return hydrateListing(store, listing);
+  }
+  const person = findProfile(store, ownerId);
+  const slots = PLANS[planId(person.plan)].featuredSlots;
+  if (!(listing.status === "active" && new Date(listing.expires_at) > new Date())) {
+    throw new Error("Solo se pueden destacar avisos activos");
+  }
+  if (slots < 1) throw new Error("Los avisos destacados son del plan Pro");
+  const others = store.listings.filter((item) => item.owner_id === ownerId && item.id !== listingId);
+  if (featuredCount(others) >= slots) {
+    throw new Error(`Ya usaste tus ${slots} destacados. Sacale el destacado a uno para destacar otro.`);
+  }
+  listing.featured = true;
   return hydrateListing(store, listing);
 }
