@@ -1,7 +1,8 @@
 // Edge Function «enviar-mail» de Lavalle Alquila.
 // La llaman los triggers de la base (pg_net) con el header x-webhook-secret.
 // Manda por Resend (API HTTP) los mails de bienvenida, «aviso publicado» y los 4 de suscripción
-// (subscription_started, payment_failed, subscription_cancelled, subscription_ended).
+// (subscription_started, payment_failed, subscription_cancelled, subscription_ended),
+// la denuncia al equipo, el botón de arrepentimiento (equipo + quien lo pide) y el código de regalo.
 // Secrets necesarios: RESEND_API_KEY, WEBHOOK_SECRET.
 // SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY ya los inyecta Supabase solo.
 // Desplegar SIN verificación de JWT (la autenticación es el secreto compartido).
@@ -39,7 +40,36 @@ const TEMPLATES: Record<string, { subject: string; html: string }> = {
     subject: "Nueva denuncia en Lavalle Alquila",
     html: __HTML_REPORT__,
   },
+  regret_team: {
+    subject: "Pedido de arrepentimiento {{CODIGO}}",
+    html: __HTML_REGRET_TEAM__,
+  },
+  regret_requester: {
+    subject: "Recibimos tu pedido de arrepentimiento ({{CODIGO}})",
+    html: __HTML_REGRET_REQUESTER__,
+  },
+  promo_started: {
+    subject: "Tenés Pro de regalo por {{DIAS}} días",
+    html: __HTML_PROMO__,
+  },
 };
+
+const TEAM = "jirfcarp@gmail.com";
+const MAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
+async function resend(apiKey: string, to: string, subject: string, html: string) {
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
+    body: JSON.stringify({ from: FROM, to: [to], subject, html }),
+  });
+  if (!r.ok) {
+    console.error("Resend", r.status, await r.text());
+    return { ok: false, status: r.status, id: null };
+  }
+  const sent = await r.json().catch(() => ({}));
+  return { ok: true, status: r.status, id: sent?.id ?? null };
+}
 
 const SUB_KINDS = new Set(["subscription_started", "payment_failed", "subscription_cancelled", "subscription_ended"]);
 const PLAN_NAMES: Record<string, string> = { free: "Gratis", plus: "Plus", pro: "Pro" };
@@ -183,6 +213,31 @@ Deno.serve(async (req) => {
   } else if (kind && SUB_KINDS.has(kind)) {
     if (!payload.user_id || !UUID.test(payload.user_id)) return json({ error: "user_id inválido" }, 400);
     userId = payload.user_id;
+  } else if (kind === "regret_requested") {
+    const p = payload as Record<string, unknown>;
+    const code = String(p.code ?? "").slice(0, 40);
+    const contact = String(p.contact_email ?? "").trim();
+    const account = String(p.account_email ?? "").trim();
+    if (!/^ARR-\d{8}-\d{4,}$/.test(code) || !MAIL_RE.test(contact)) return json({ error: "pedido inválido" }, 400);
+    const who = String(p.name ?? "").trim().slice(0, 120);
+    const vars = {
+      CODIGO: esc(code),
+      NOMBRE_PEDIDO: esc(who || "sin nombre"),
+      MAIL_CONTACTO: esc(contact),
+      MAIL_CUENTA: esc(account || contact),
+      MOTIVO: esc(String(p.reason ?? "").trim().slice(0, 1000) || "sin motivo"),
+    };
+    const team = TEMPLATES.regret_team;
+    const mine = TEMPLATES.regret_requester;
+    const name = firstName(who);
+    const a = await resend(apiKey, TEAM, team.subject.split("{{CODIGO}}").join(code), fill(team.html, vars, ""));
+    const b = await resend(apiKey, contact, mine.subject.split("{{CODIGO}}").join(code), fill(mine.html, { ...vars, NOMBRE: esc(name) }, name));
+    console.log("enviado", kind, code, a.id ?? "sin id", b.id ?? "sin id");
+    if (!a.ok || !b.ok) return json({ error: "Resend rechazó el envío", team: a.status, requester: b.status }, 502);
+    return json({ ok: true, type: kind, ids: [a.id, b.id] });
+  } else if (kind === "promo_started") {
+    if (!payload.user_id || !UUID.test(payload.user_id)) return json({ error: "user_id inválido" }, 400);
+    userId = payload.user_id;
   } else if (kind === "report_received") {
     const tpl = TEMPLATES.report_received;
     const motivo = String(payload.reason ?? "");
@@ -221,9 +276,14 @@ Deno.serve(async (req) => {
   if (p?.full_name) name = firstName(p.full_name);
 
   const tpl = TEMPLATES[kind!];
-  const extra = SUB_KINDS.has(kind!) ? subscriptionVars(kind!, payload as Record<string, unknown>) : {};
+  const extra: Record<string, string> = SUB_KINDS.has(kind!) ? subscriptionVars(kind!, payload as Record<string, unknown>) : {};
+  if (kind === "promo_started") {
+    const days = Math.max(1, Math.round(Number((payload as Record<string, unknown>).days) || 15));
+    extra.DIAS = String(days);
+    extra.HASTA = longDate(payload.until) || `dentro de ${days} días`;
+  }
   const html = fill(tpl.html, { NOMBRE: esc(name), TITULO_AVISO: esc(title), LINK_AVISO: link, ...extra }, name);
-  const subject = tpl.subject.split("{{PLAN}}").join(extra.PLAN ?? "");
+  const subject = tpl.subject.split("{{PLAN}}").join(extra.PLAN ?? "").split("{{DIAS}}").join(extra.DIAS ?? "");
 
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",

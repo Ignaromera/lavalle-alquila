@@ -22,26 +22,23 @@ export function headerAccountLabel(session) {
   return session ? "Mi cuenta" : "Entrar / Crear cuenta";
 }
 
-export function regretMailto(email = "") {
-  const subject = "Arrepentimiento de suscripción";
-  const lines = ["Quiero ejercer el derecho de arrepentimiento de mi suscripción."];
-  if (email) lines.push("", `Email de la cuenta: ${email}`);
-  return `mailto:${REGRET_MAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
-}
+/** Página del Botón de arrepentimiento (formulario sin cuenta, con código de trámite). */
+export const REGRET_HREF = "#/arrepentimiento";
 
-export function legalLinksHtml(email = "") {
+export function legalLinksHtml() {
   const base = import.meta.env?.BASE_URL || "./";
   return `<nav class="legal" aria-label="Información legal">
+    <a href="#/como-funciona" data-testid="footer-como-funciona">Cómo funciona</a>
     <a href="#/planes" data-testid="footer-planes">Planes</a>
-    <a href="${base}privacidad.html">Política de privacidad</a>
-    <a href="${base}terminos.html">Términos y condiciones</a>
-    <a href="${regretMailto(email)}" data-regret data-testid="boton-arrepentimiento">Botón de arrepentimiento</a>
+    <a href="${base}terminos.html" data-testid="footer-terminos">Términos y condiciones</a>
+    <a href="${base}privacidad.html" data-testid="footer-privacidad">Política de privacidad</a>
+    <a href="${REGRET_HREF}" data-regret data-testid="boton-arrepentimiento">Botón de arrepentimiento</a>
   </nav>`;
 }
 
-export function appendLegalFooter(view, email = "") {
+export function appendLegalFooter(view) {
   if (!view || view.querySelector("nav.legal")) return;
-  view.insertAdjacentHTML("beforeend", legalLinksHtml(email));
+  view.insertAdjacentHTML("beforeend", legalLinksHtml());
 }
 
 function emailField(value = "") {

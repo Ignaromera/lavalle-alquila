@@ -1,18 +1,23 @@
-import { cancelMySubscription, mySubscription, myListings, syncSubscription, isDemo } from "../api.js";
+import { cancelMySubscription, myPromoGrant, mySubscription, myListings, syncSubscription, isDemo } from "../api.js";
+import { promoStatus } from "../promo.js";
 import { render } from "../bus.js";
 import { esc } from "../format.js";
 import {
   PLANS, activeCount, featuredCount, formatArs, isUnlimited, longDate, planOf, renewalDate, subscriptionState, usageLabel,
 } from "../plans.js";
 import { toast } from "../toast.js";
-import { legalLinksHtml, regretMailto, sessionEmail } from "./auth-ui.js";
+import { legalLinksHtml, REGRET_HREF } from "./auth-ui.js";
 
-function stateBlock(sub, plan, state, profile) {
+function stateBlock(sub, plan, state, profile, grant) {
   const until = longDate(sub?.access_until);
   const renew = renewalDate(sub);
   const price = sub ? `${formatArs(sub.amount_ars)} por ${sub.billing_interval === "year" ? "año" : "mes"}` : "";
   if (!sub && plan.id === "free") {
     return `<p>Estás en el plan <strong>Gratis</strong>: 1 aviso activo. Si necesitás más, mirá los planes.</p>`;
+  }
+  const promo = promoStatus(grant);
+  if (!sub && promo.active) {
+    return `<p data-testid="sub-promo">Tenés el plan <strong>Pro de regalo</strong> con el código ${esc(grant.code || "")} hasta el <strong>${esc(longDate(grant.ends_at))}</strong> (${promo.daysLeft} día${promo.daysLeft === 1 ? "" : "s"}). No se cobra nada. Después volvés solo al plan Gratis, salvo que te suscribas.</p>`;
   }
   if (!sub) {
     return `<p>Tu plan <strong>${esc(plan.name)}</strong> lo activó el equipo de Lavalle Alquila, sin cobro automático.</p>`;
@@ -41,12 +46,12 @@ export async function renderSubscription(view, route, session) {
         <p class="lede">Entrá a tu cuenta para ver tu plan.</p>
       </section>
       <p><a class="btn btn-primary" href="#/cuenta">Entrar</a> <a class="btn btn-ghost" href="#/planes">Ver los planes</a></p>
-      <p><a class="btn btn-ghost" href="${regretMailto()}" data-regret data-testid="boton-arrepentimiento">Botón de arrepentimiento</a></p>
+      <p><a class="btn btn-ghost" href="${REGRET_HREF}" data-regret>Botón de arrepentimiento</a></p>
       ${legalLinksHtml()}`;
     return;
   }
 
-  const [sub, listings] = await Promise.all([mySubscription().catch(() => null), myListings().catch(() => [])]);
+  const [sub, listings, grant] = await Promise.all([mySubscription().catch(() => null), myListings().catch(() => []), myPromoGrant().catch(() => null)]);
   const profile = session.profile;
   const planFromSub = sub && sub.plan_id && PLANS[sub.plan_id];
   const plan = sub && ["authorized", "paused", "cancelled"].includes(sub.status) && planFromSub ? planFromSub : planOf(profile);
@@ -63,7 +68,7 @@ export async function renderSubscription(view, route, session) {
     <article class="sub-card" data-testid="sub-card">
       <p class="eyebrow">Tu plan</p>
       <h2>${esc(plan.name)} ${sub && state.state === "active" ? '<span class="badge badge-ok">Activo</span>' : ""}${state.state === "cancelling" ? '<span class="badge">Cancelado</span>' : ""}${state.state === "past_due" ? '<span class="badge badge-warn">Pago pendiente</span>' : ""}${state.state === "pending" ? '<span class="badge">Confirmando pago</span>' : ""}</h2>
-      ${stateBlock(sub, plan, state, profile)}
+      ${stateBlock(sub, plan, state, profile, grant)}
       ${isDemo() ? `<p class="fine">Ejemplo: en esta versión de prueba no hay cobros reales.</p>` : ""}
     </article>
     <article class="sub-card">
@@ -78,10 +83,10 @@ export async function renderSubscription(view, route, session) {
     </div>
     <aside class="plan-foot">
       <p><strong>Si cancelás o falla un pago.</strong> Tu plan sigue hasta la fecha de arriba. Después pasás al plan Gratis: queda activo el aviso más reciente y los demás vencen. No se borra nada: los renovás cuando vuelvas a suscribirte.</p>
-      <p><a class="btn btn-ghost" href="${regretMailto(sessionEmail(session))}" data-regret data-testid="boton-arrepentimiento">Botón de arrepentimiento</a></p>
-      <p class="fine">Si te suscribiste hace menos de 10 días y te arrepentís, tocá el botón. Te respondemos con un código de trámite dentro de las 24 horas.</p>
+      <p><a class="btn btn-ghost" href="${REGRET_HREF}" data-regret>Botón de arrepentimiento</a></p>
+      <p class="fine">Si te suscribiste hace menos de 10 días y te arrepentís, tocá el botón: te damos un código de trámite al instante y te devolvemos todo lo que pagaste.</p>
     </aside>
-    ${legalLinksHtml(sessionEmail(session))}`;
+    ${legalLinksHtml()}`;
 
   view.querySelector("[data-cancel]")?.addEventListener("click", async (event) => {
     const until = longDate(sub.access_until);

@@ -1,4 +1,6 @@
 import { applyFilters, isPublicListing } from "./filter.js";
+import { normalizeRegret, regretCode } from "./regret.js";
+import { redeemInMemory } from "./promo.js";
 import { assertReportReason, canReportAgain, clipReportDetails } from "./reports.js";
 import { addDays, clock, hoursLabel, isoDay, normalizeWhatsapp, plusDaysISO } from "./format.js";
 import { AMENITY_IDS, DISTRICT_NAMES, isVenue, pointInLavalle } from "./geo.js";
@@ -425,7 +427,12 @@ export function createDemoStore() {
       payment_failed_at: null,
     },
   ];
-  const store = { profiles, listings, slots, requests, reports, seeks, stats: [], subscriptions };
+  const store = { profiles, listings, slots, requests, reports, seeks, stats: [], subscriptions, ...extrasStore() };
+  store.regrets.push({
+    id: crypto.randomUUID(), code: regretCode(1, addDays(-1)), full_name: "Lucía Gómez", contact_email: "lucia@ejemplo.com",
+    account_email: "lucia@ejemplo.com", reason: "Me suscribí al plan equivocado.", user_id: null,
+    created_at: addDays(-1).toISOString(), resolved_at: null,
+  });
   seedStats(store);
   return store;
 }
@@ -480,7 +487,16 @@ export function statsForOwner(store, ownerId) {
 }
 
 export function emptyStore() {
-  return { profiles: [], listings: [], slots: [], requests: [], reports: [], seeks: [], stats: [], subscriptions: [] };
+  return { profiles: [], listings: [], slots: [], requests: [], reports: [], seeks: [], stats: [], subscriptions: [], ...extrasStore() };
+}
+
+/** Arrepentimientos y códigos de regalo del modo ejemplo (LAVALLE5: 15 días de Pro, 5 usos). */
+function extrasStore() {
+  return {
+    regrets: [],
+    promoGrants: [],
+    promoCodes: { LAVALLE5: { plan_id: "pro", days: 15, max_uses: 5, used: 0, enabled: true, expires_at: null } },
+  };
 }
 
 function findProfile(store, id) {
@@ -1155,4 +1171,55 @@ export function setFeatured(store, ownerId, listingId, on) {
   }
   listing.featured = true;
   return hydrateListing(store, listing);
+}
+
+// ---------------------------------------------------------------------------
+// Botón de arrepentimiento (modo ejemplo: no se guarda ni se manda nada)
+// ---------------------------------------------------------------------------
+
+export function addRegret(store, fields, userId = null) {
+  const clean = normalizeRegret(fields);
+  const row = {
+    id: crypto.randomUUID(),
+    code: regretCode(store.regrets.length + 1),
+    full_name: clean.name,
+    contact_email: clean.email,
+    account_email: clean.account,
+    reason: clean.reason,
+    user_id: userId,
+    created_at: new Date().toISOString(),
+    resolved_at: null,
+  };
+  store.regrets.push(row);
+  return row.code;
+}
+
+export function adminRegrets(store) {
+  return [...store.regrets].sort((a, b) => Number(!!a.resolved_at) - Number(!!b.resolved_at) || new Date(b.created_at) - new Date(a.created_at));
+}
+
+export function adminResolveRegret(store, id) {
+  const row = store.regrets.find((item) => item.id === id);
+  if (!row) throw new Error("Ese pedido no está");
+  row.resolved_at = new Date().toISOString();
+  return row;
+}
+
+// ---------------------------------------------------------------------------
+// Código de regalo
+// ---------------------------------------------------------------------------
+
+export function promoGrantFor(store, userId) {
+  return store.promoGrants.find((item) => item.user_id === userId) || null;
+}
+
+export function redeemCode(store, userId, email, code) {
+  const profile = findProfile(store, userId);
+  const paidBefore = (store.subscriptions || []).some((row) => row.user_id === userId && row.status !== "pending");
+  const grant = redeemInMemory({ codes: store.promoCodes, grants: store.promoGrants, profile, email, code, paidBefore });
+  const pro = PLANS.pro;
+  profile.plan = "pro";
+  profile.max_listings = pro.maxListings;
+  profile.booking_enabled = true;
+  return grant;
 }

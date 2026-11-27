@@ -37,3 +37,16 @@ Reenviar la bienvenida a mano (SQL Editor): `select private.avisar_mail(jsonb_bu
 - `emails/11-denuncia.html`: aviso al equipo cuando alguien denuncia un aviso o una búsqueda.
 - Lo manda `enviar-mail` con el tipo `report_received`, siempre a `jirfcarp@gmail.com`.
 - El trigger `mail_denuncia` (en `migration-reports-moderacion.sql`) llama a `private.avisar_mail` después de un INSERT en `reports`. Si el envío falla, la denuncia igual se guarda.
+
+## Botón de arrepentimiento
+
+- `migration-arrepentimiento.sql`: tabla `regret_requests` (insert anónimo, lectura y resolución solo admin), código de trámite `ARR-AAAAMMDD-0001` y `public.pedir_arrepentimiento(...)`, que devuelve el código al instante.
+- El trigger `mail_arrepentimiento` manda el tipo `regret_requested` a `enviar-mail`, que envía dos mails:
+  `emails/12-arrepentimiento-equipo.html` a jirfcarp@gmail.com («Pedido de arrepentimiento ARR-…») y
+  `emails/13-arrepentimiento-recibido.html` a quien lo pidió («Recibimos tu pedido de arrepentimiento (ARR-…)»).
+- En Moderación aparece la sección «Arrepentimientos» con «Marcar resuelto». La devolución se hace a mano en Mercado Pago.
+
+## Código de regalo (LAVALLE5)
+
+- `migration-promo-pro.sql`: tablas `promo_codes` y `promo_grants`, `public.canjear_codigo(code)` y el vencimiento en `private.vencer_promos()` (corre dentro de `vencer_suscripciones`).
+- Al canjear se manda `promo_started` → `emails/14-pro-de-regalo.html` («Tenés Pro de regalo por 15 días»). Al vencer se reusa `subscription_ended` («Volviste al plan Gratis»).

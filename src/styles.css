@@ -36,7 +36,8 @@ p { margin: 0; }
 .wordmark img { width: 30px; height: auto; }
 .wm-text { display: inline-flex; align-items: baseline; gap: 6px; }
 .wordmark small { font-family: var(--body); font-weight: 600; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
-.top-plans { margin-left: auto; font-weight: 600; font-size: 14px; text-decoration: none; color: var(--ink); white-space: nowrap; }
+.top-nav { margin-left: auto; display: flex; align-items: center; gap: 16px; }
+.top-plans { font-weight: 600; font-size: 14px; text-decoration: none; color: var(--ink); white-space: nowrap; }
 .top-plans[aria-current="page"] { text-decoration: underline; text-underline-offset: 4px; }
 .who { flex-shrink: 0; font-weight: 600; font-size: 14px; text-decoration: none; padding: 9px 16px; border-radius: 999px; border: 1.5px solid var(--ink); color: var(--ink); white-space: nowrap; }
 @media (max-width: 480px) {
@@ -51,7 +52,8 @@ p { margin: 0; }
     align-items: center;
   }
   .wordmark { grid-area: brand; }
-  .top-plans { grid-area: plans; margin-left: 38px; font-size: 13px; }
+  .top-nav { grid-area: plans; margin-left: 38px; gap: 12px; }
+  .top-plans { font-size: 13px; }
   .who { grid-area: who; padding: 8px 10px; font-size: 13px; }
 }
 .demo-banner { margin: 8px 20px 0; padding: 10px 14px; border-radius: var(--r-sm); background: var(--cream); font-size: 13.5px; font-weight: 600; }
@@ -465,3 +467,31 @@ body.sheet-open { overflow: hidden; }
 .sub-actions { margin: 16px 0 0; }
 .limit { display: grid; gap: 8px; }
 .limit p { margin: 0; }
+
+/* cómo funciona */
+.how-block { margin-top: 26px; }
+.how-steps { padding-left: 22px; display: grid; gap: 10px; }
+.how-steps li::marker { font-family: var(--head); font-weight: 800; color: var(--muted); }
+.how-safety { margin-top: 18px; padding: 14px 16px; border-radius: var(--r-sm); background: var(--cream); }
+.how-safety h3 { margin: 0 0 6px; }
+.how-safety ul { margin: 0; padding-left: 20px; }
+.how-plans { list-style: none; padding: 0; display: grid; gap: 10px; }
+.how-plan { padding: 12px 14px; border: 1px solid var(--line, #ebdcc7); border-radius: var(--r-sm, 12px); background: var(--card); }
+.how-faq details { border-bottom: 1px solid var(--line, #ebdcc7); padding: 12px 0; }
+.how-faq summary { cursor: pointer; font-weight: 600; }
+.how-faq p { margin: 8px 0 0; }
+
+/* botón de arrepentimiento */
+.regret-form { max-width: 520px; }
+.regret-form textarea { width: 100%; font: inherit; }
+.regret-done { max-width: 560px; }
+.regret-code { white-space: nowrap; color: var(--orange-deep); }
+
+/* código de regalo */
+.code-box { margin: 14px 0; padding: 12px 14px; border: 1.5px dashed var(--line, #ebdcc7); border-radius: var(--r-sm, 12px); }
+.code-box summary { cursor: pointer; font-weight: 600; }
+.code-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; margin-top: 10px; }
+.code-form .field { flex: 1 1 180px; }
+.code-form input { text-transform: uppercase; }
+.admin-done { margin: 10px 0 18px; }
+.admin-done summary { cursor: pointer; font-weight: 600; }

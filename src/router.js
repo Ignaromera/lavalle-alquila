@@ -17,6 +17,8 @@ export function parseRoute() {
   else if (head === "busco") name = "seeks";
   else if (head === "cuenta") name = "account";
   else if (head === "planes") name = "plans";
+  else if (head === "como-funciona") name = "how";
+  else if (head === "arrepentimiento") name = "regret";
   else if (head === "suscripcion") name = "subscription";
   else if (head === "anunciante" && parts[1]) name = "advertiser";
   else if (head === "admin" && parts[1] === "anunciante" && parts[2]) name = "advertiser-admin";

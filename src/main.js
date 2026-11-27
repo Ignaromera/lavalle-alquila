@@ -11,6 +11,8 @@ import { renderDetail } from "./pages/detail.js";
 import { renderHome, renderVenues } from "./pages/home.js";
 import { renderMap } from "./pages/map.js";
 import { renderPlans } from "./pages/plans.js";
+import { renderHow } from "./pages/how.js";
+import { renderRegret } from "./pages/regret.js";
 import { renderPublish } from "./pages/publish.js";
 import { renderSeek, renderSeekNew, renderSeeks } from "./pages/seeks.js";
 import { bindPublishChoice, publishChoiceHtml } from "./publish-choice.js";
@@ -35,6 +37,8 @@ const TITLES = {
   advertiser: "Avisos del anunciante",
   "advertiser-admin": "Avisos del anunciante",
   turnero: "Turnero",
+  how: "Cómo funciona",
+  regret: "Botón de arrepentimiento",
 };
 
 const routes = {
@@ -53,6 +57,8 @@ const routes = {
   advertiser: renderAdvertiser,
   "advertiser-admin": renderAdvertiser,
   turnero: renderOwnerTurnero,
+  how: renderHow,
+  regret: renderRegret,
 };
 
 const app = document.querySelector("#app");
@@ -74,7 +80,10 @@ function shell(route, session) {
         <img src="${base}brand/lavalle-alquila-marca.svg" width="30" height="24" alt="" />
         <span class="wm-text">Lavalle Alquila <small>Mendoza</small></span>
       </a>
-      <a class="top-plans" href="#/planes" data-testid="header-planes"${route.name === "plans" ? ' aria-current="page"' : ""}>Planes</a>
+      <nav class="top-nav" aria-label="Información">
+        <a class="top-plans top-how" href="#/como-funciona" data-testid="header-como-funciona"${route.name === "how" ? ' aria-current="page"' : ""}>Cómo funciona</a>
+        <a class="top-plans" href="#/planes" data-testid="header-planes"${route.name === "plans" ? ' aria-current="page"' : ""}>Planes</a>
+      </nav>
       <a class="who" href="#/cuenta" data-testid="header-auth">${esc(headerAccountLabel(session))}</a>
     </header>
     ${isDemo() ? demoBannerHtml() : ""}

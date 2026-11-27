@@ -102,3 +102,36 @@ test("la denuncia le llega a jirfcarp y no busca un usuario denunciante", async 
   assert.match(sent[0].body.html, /#\/aviso\/d39cd325-0ba5-47d6-a6b8-9b1913cfb4ff/);
   assert.equal(/\{\{/.test(sent[0].body.html), false);
 });
+
+test("arrepentimiento: sale un mail al equipo y otro a quien lo pidió, los dos con el código", async () => {
+  const handler = await loadFunction();
+  const { res, sent } = await send(handler, {
+    type: "regret_requested", code: "ARR-20261127-0007", name: "Beto Gómez", contact_email: "beto@example.com",
+    account_email: "cuenta@example.com", reason: "<b>me arrepentí</b>",
+  });
+  assert.equal(res.status, 200);
+  assert.equal(sent.length, 2);
+  assert.deepEqual(sent[0].body.to, ["jirfcarp@gmail.com"]);
+  assert.equal(sent[0].body.subject, "Pedido de arrepentimiento ARR-20261127-0007");
+  assert.match(sent[0].body.html, /cuenta@example\.com/);
+  assert.match(sent[0].body.html, /&lt;b&gt;me arrepentí/);
+  assert.deepEqual(sent[1].body.to, ["beto@example.com"]);
+  assert.equal(sent[1].body.subject, "Recibimos tu pedido de arrepentimiento (ARR-20261127-0007)");
+  assert.match(sent[1].body.html, /¡Hola, Beto!/);
+  assert.match(sent[1].body.html, /ARR-20261127-0007/);
+  for (const m of sent) assert.equal(/\{\{/.test(m.body.html), false);
+
+  const bad = await send(handler, { type: "regret_requested", code: "x", contact_email: "beto@example.com" });
+  assert.equal(bad.res.status, 400);
+  assert.equal(bad.sent.length, 0);
+});
+
+test("código de regalo: mail con los días y la fecha de fin", async () => {
+  const handler = await loadFunction();
+  const { res, sent } = await send(handler, { type: "promo_started", plan: "pro", days: 15, until: "2026-12-12T15:00:00.000Z" });
+  assert.equal(res.status, 200);
+  assert.equal(sent[0].body.subject, "Tenés Pro de regalo por 15 días");
+  assert.deepEqual(sent[0].body.to, ["ana@example.com"]);
+  assert.match(sent[0].body.html, /gratis por 15 días, hasta el <strong>12 de diciembre de 2026<\/strong>/);
+  assert.equal(/\{\{/.test(sent[0].body.html), false);
+});

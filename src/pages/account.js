@@ -7,7 +7,9 @@ import {
   myBookingRequests,
   myListings,
   mySeeks,
+  myPromoGrant,
   myStats,
+  redeemPromoCode,
   renewListing,
   setBookingStatus,
   setFeatured,
@@ -25,7 +27,8 @@ import { bindSeekActions, seekOwnerCard } from "./seeks.js";
 import { confirmWaText, esc, formatDay, formatWhen, givenName, priceLabel, shiftLabel, typeLabel, waLink } from "../format.js";
 import { isVenue } from "../geo.js";
 import { bindTurnero, calFor, turneroHtml } from "../turnero-ui.js";
-import { activeCount, canFeature, featuredCount, featuredSlots, planNote, planOf } from "../plans.js";
+import { activeCount, canFeature, featuredCount, featuredSlots, longDate, planNote, planOf } from "../plans.js";
+import { canShowCodeBox, promoStatus } from "../promo.js";
 import { recentDays } from "../stats.js";
 import { statsPanelHtml } from "../stats-ui.js";
 import { toast } from "../toast.js";
@@ -59,7 +62,7 @@ export async function renderAccount(view, route, session) {
     return;
   }
 
-  const [listings, seeks, requests, stats] = await Promise.all([myListings(), mySeeks(), myBookingRequests(), myStats()]);
+  const [listings, seeks, requests, stats, grant] = await Promise.all([myListings(), mySeeks(), myBookingRequests(), myStats(), myPromoGrant().catch(() => null)]);
   const plan = planOf(session.profile);
   const turnero = session.profile.booking_enabled || plan.turnero;
   const note = planNote(session.profile, activeCount(listings));
@@ -78,6 +81,8 @@ export async function renderAccount(view, route, session) {
     </section>
     ${isDemo() ? demoNoticeHtml() : ""}
     <p class="plan-note" data-testid="plan-note">Plan <strong>${esc(plan.name)}</strong> · ${esc(note.text)} ${note.cta ? `${esc(note.cta)} ` : ""}${turnero ? "El turnero está habilitado en tus quinchos y salones. " : ""}<a href="#/${plan.id === "free" ? "planes" : "suscripcion"}">${plan.id === "free" ? "Ver planes" : "Mi suscripción"}</a></p>
+    ${promoNoteHtml(grant)}
+    ${canShowCodeBox(session.profile, grant) ? codeBoxHtml() : ""}
     ${showStats ? statsPanelHtml(listings, seeks, stats, recentDays(7)) : ""}
     ${plan.id === "pro" ? "" : plansCtaHtml(plan)}
     ${isPasswordRecovery() ? recoveryPasswordHtml() : ""}
@@ -119,6 +124,7 @@ export async function renderAccount(view, route, session) {
       toast(error.message);
     }
   });
+  bindCodeBox(view);
   bindListingActions(view);
   bindSeekActions(view);
   bindRequestActions(view, session);
@@ -130,6 +136,43 @@ export async function renderAccount(view, route, session) {
     });
   });
   void route;
+}
+
+export function codeBoxHtml() {
+  return `<details class="code-box" data-testid="code-box">
+    <summary>¿Tenés un código de regalo?</summary>
+    <form class="code-form" data-code-form>
+      <label class="field">Código
+        <input name="code" required autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="30" placeholder="Ej.: LAVALLE5" />
+      </label>
+      <button class="btn btn-primary" type="submit" data-testid="code-submit">Usar código</button>
+    </form>
+    <p class="fine">Si te pasamos un código, cargalo acá. Es para cuentas en el plan Gratis y se usa una sola vez.</p>
+  </details>`;
+}
+
+export function promoNoteHtml(grant, now = new Date()) {
+  const st = promoStatus(grant, now);
+  if (!st.active) return "";
+  return `<p class="plan-note promo-note" data-testid="promo-note">Tenés <strong>Pro de regalo</strong> hasta el ${esc(longDate(grant.ends_at))} (${st.daysLeft} día${st.daysLeft === 1 ? "" : "s"}). No se cobra nada; después volvés solo al plan Gratis.</p>`;
+}
+
+function bindCodeBox(view) {
+  const form = view.querySelector("[data-code-form]");
+  if (!form) return;
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const button = form.querySelector("button[type=submit]");
+    button.disabled = true;
+    try {
+      const result = await redeemPromoCode(new FormData(form).get("code"));
+      toast(`¡Listo! Tenés Pro de regalo por ${result?.days || 15} días.`);
+      render({ scroll: false });
+    } catch (error) {
+      button.disabled = false;
+      toast(error.message);
+    }
+  });
 }
 
 function plansCtaHtml(plan) {

@@ -1,4 +1,4 @@
-import { adminHideListing, adminListings, adminRemove, adminRemoveSeek, adminReports, adminResolveReport, adminRestore, adminSetFlags, isDemo } from "../api.js";
+import { adminHideListing, adminListings, adminRegrets, adminResolveRegret, adminRemove, adminRemoveSeek, adminReports, adminResolveReport, adminRestore, adminSetFlags, isDemo } from "../api.js";
 import { render } from "../bus.js";
 import { esc, typeLabel } from "../format.js";
 import { isVenue } from "../geo.js";
@@ -18,12 +18,15 @@ export async function renderAdmin(view, route, session) {
   }
   let listings = [];
   let reports = [];
+  let regrets = [];
   try {
-    [listings, reports] = await Promise.all([adminListings(), adminReports()]);
+    [listings, reports, regrets] = await Promise.all([adminListings(), adminReports(), adminRegrets().catch(() => [])]);
   } catch (error) {
     view.innerHTML = `<section class="page-head"><h1 tabindex="-1">Moderación</h1><p class="error">${esc(error.message)}</p></section>`;
     return;
   }
+  const openRegrets = regrets.filter((item) => !item.resolved_at);
+  const doneRegrets = regrets.filter((item) => item.resolved_at);
   const openReports = reports.filter((item) => !item.resolved_at);
   const resolvedReports = reports.filter((item) => item.resolved_at);
   const review = listings.filter((item) => item.status === "hidden" || item.report_count > 0);
@@ -33,6 +36,11 @@ export async function renderAdmin(view, route, session) {
       <h1 tabindex="-1">Moderación</h1>
       <p class="lede">${isDemo() ? "Estás viendo datos de ejemplo. En producción esto solo lo abre quien esté en admin_emails." : "Denuncias, avisos ocultos, destacados y turnero."}</p>
     </section>
+    <h2 data-testid="regrets-heading">Arrepentimientos</h2>
+    <div class="stack" data-testid="admin-regrets">
+      ${openRegrets.length ? openRegrets.map(regretCard).join("") : `<p class="empty">No hay pedidos de arrepentimiento pendientes.</p>`}
+    </div>
+    ${doneRegrets.length ? `<details class="admin-done"><summary>Arrepentimientos resueltos (${doneRegrets.length})</summary><div class="stack">${doneRegrets.map(regretCard).join("")}</div></details>` : ""}
     <h2 data-testid="reports-heading">Denuncias</h2>
     <div class="stack" data-testid="admin-reports">
       ${openReports.length ? openReports.map(reportCard).join("") : `<p class="empty">No hay denuncias pendientes.</p>`}
@@ -43,6 +51,12 @@ export async function renderAdmin(view, route, session) {
     <h2>Quinchos y salones</h2>
     <div class="stack">${venues.length ? venues.map(adminCard).join("") : `<p class="muted">No hay quinchos ni salones.</p>`}</div>`;
 
+  view.querySelectorAll("[data-resolve-regret]").forEach((button) => {
+    button.addEventListener("click", () => {
+      if (!confirm("¿Marcar este pedido como resuelto? Hacelo después de cancelar la suscripción y devolver el pago.")) return;
+      run(() => adminResolveRegret(button.dataset.resolveRegret), "Pedido marcado como resuelto.");
+    });
+  });
   view.querySelectorAll("[data-resolve]").forEach((button) => {
     button.addEventListener("click", () => run(() => adminResolveReport(button.dataset.resolve), "Denuncia marcada como resuelta."));
   });
@@ -74,6 +88,22 @@ export async function renderAdmin(view, route, session) {
     button.addEventListener("click", () => run(() => adminSetFlags(button.dataset.booking, { booking_enabled: button.dataset.on !== "1" }), "Turnero actualizado."));
   });
   void route;
+}
+
+export function regretCard(item) {
+  const done = !!item.resolved_at;
+  const owner = item.user_id ? `<a href="#/admin/anunciante/${esc(item.user_id)}">Ver la cuenta</a>` : "";
+  return `<article class="owner-card" data-testid="admin-regret" data-resolved="${done ? "1" : "0"}">
+    <p class="eyebrow">${esc(item.code)} · ${esc(reportDay(item.created_at))}</p>
+    <h3>${esc(item.full_name)}</h3>
+    <p class="fine">Contacto: <a href="mailto:${esc(item.contact_email)}?subject=${encodeURIComponent(`Tu pedido de arrepentimiento ${item.code}`)}">${esc(item.contact_email)}</a>${item.account_email && item.account_email !== item.contact_email ? ` · Cuenta: ${esc(item.account_email)}` : ""}${owner ? ` · ${owner}` : ""}</p>
+    ${item.reason ? `<p class="fine">${esc(item.reason)}</p>` : ""}
+    ${done ? `<p class="fine">Resuelto el ${esc(reportDay(item.resolved_at))}</p>` : `<p class="fine">Cancelá la suscripción y devolvé el total desde Mercado Pago (Actividad → el cobro → Devolver). Después marcalo resuelto.</p>
+    <div class="row-actions">
+      <a class="btn btn-small btn-ghost" href="https://www.mercadopago.com.ar/activities" target="_blank" rel="noopener">Abrir Mercado Pago</a>
+      <button type="button" class="btn btn-small" data-resolve-regret="${esc(item.id)}" data-testid="resolve-regret">Marcar resuelto</button>
+    </div>`}
+  </article>`;
 }
 
 function reportCard(report) {

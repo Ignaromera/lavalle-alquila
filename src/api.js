@@ -5,6 +5,8 @@ import { applyFilters } from "./filter.js";
 import { clock, isoDay, normalizeWhatsapp } from "./format.js";
 import { claimDailyView } from "./stats.js";
 import { pickSubscription } from "./plans.js";
+import { normalizeCode } from "./promo.js";
+import { normalizeRegret } from "./regret.js";
 import { compressImage, readDataUrl } from "./photos.js";
 
 const DEMO_KEY = "lavalle-demo-user";
@@ -1124,3 +1126,86 @@ export const DEMO_LOGIN = [
   { id: demo.IDS.rosa, label: "Rosa Méndez", detail: "Salón sin turnero" },
   { id: demo.IDS.pedro, label: "Pedro Álvarez", detail: "Publicó un busco alquiler" },
 ];
+
+// ---------------------------------------------------------------------------
+// Botón de arrepentimiento
+// ---------------------------------------------------------------------------
+
+/** Guarda el pedido (sin cuenta) y devuelve el código de trámite. */
+export async function requestRegret(fields) {
+  const clean = normalizeRegret(fields);
+  if (isDemo()) {
+    const session = await getSession();
+    return demo.addRegret(mem(), clean, session?.user?.id || null);
+  }
+  const { data, error } = await getClient().rpc("pedir_arrepentimiento", {
+    p_nombre: clean.name,
+    p_email: clean.email,
+    p_email_cuenta: clean.account,
+    p_motivo: clean.reason,
+  });
+  if (error) {
+    if (/pedir_arrepentimiento|PGRST202|42883|schema cache/i.test(`${error.code} ${error.message}`)) {
+      throw new Error("No pudimos guardar el pedido. Escribinos a jirfcarp@gmail.com con el asunto «Arrepentimiento».");
+    }
+    throw asError(error);
+  }
+  return String(data || "");
+}
+
+export async function adminRegrets() {
+  if (isDemo()) return demo.adminRegrets(mem());
+  const session = await getSession();
+  if (!session?.profile.is_admin) throw new Error("Esta sección es solo para el equipo de Lavalle Alquila.");
+  const { data, error } = await getClient()
+    .from("regret_requests")
+    .select("id, code, full_name, contact_email, account_email, reason, user_id, created_at, resolved_at")
+    .order("created_at", { ascending: false });
+  if (error) {
+    if (/regret_requests|42P01|PGRST205|schema cache/i.test(`${error.code} ${error.message}`)) return [];
+    throw asError(error);
+  }
+  return (data || []).sort((a, b) => Number(!!a.resolved_at) - Number(!!b.resolved_at) || new Date(b.created_at) - new Date(a.created_at));
+}
+
+export async function adminResolveRegret(id) {
+  if (isDemo()) return demo.adminResolveRegret(mem(), id);
+  const session = await getSession();
+  if (!session?.profile.is_admin) throw new Error("No autorizado");
+  const { error } = await getClient().from("regret_requests").update({
+    resolved_at: new Date().toISOString(),
+    resolved_by: session.user.id,
+  }).eq("id", id);
+  if (error) throw asError(error);
+}
+
+// ---------------------------------------------------------------------------
+// Código de regalo (LAVALLE5)
+// ---------------------------------------------------------------------------
+
+/** El canje de la persona (vigente o no), o null. */
+export async function myPromoGrant() {
+  const session = await getSession();
+  if (!session) return null;
+  if (isDemo()) return demo.promoGrantFor(mem(), session.user.id);
+  const { data, error } = await getClient()
+    .from("promo_grants")
+    .select("code, plan_id, days, granted_at, ends_at, ended_at")
+    .maybeSingle();
+  if (error) return null;
+  return data || null;
+}
+
+export async function redeemPromoCode(code) {
+  const session = await getSession();
+  if (!session) throw new Error("Entrá a tu cuenta para cargar el código.");
+  if (isDemo()) return demo.redeemCode(mem(), session.user.id, session.user.email || session.profile?.email || "", code);
+  const { data, error } = await getClient().rpc("canjear_codigo", { p_code: normalizeCode(code) });
+  if (error) {
+    if (/canjear_codigo|PGRST202|42883|schema cache/i.test(`${error.code} ${error.message}`)) {
+      throw comingSoon("Los códigos de regalo se habilitan muy pronto.");
+    }
+    throw asError(error);
+  }
+  return data;
+}

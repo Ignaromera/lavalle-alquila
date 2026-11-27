@@ -14,6 +14,7 @@
     "leaflet": "^1.9.4"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.6.1",
     "esbuild": "^0.25.12",
     "happy-dom": "^17.4.4",
     "vite": "^6.4.1"
