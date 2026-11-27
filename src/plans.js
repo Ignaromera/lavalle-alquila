@@ -32,7 +32,7 @@ export const PLANS = {
     stats: true,
     turnero: false,
     monthly: 6900,
-    yearly: 49000,
+    yearly: 0, // sin plan anual: solo el Pro lo tiene (decisión de Ignacio)
   },
   pro: {
     id: "pro",
@@ -105,9 +105,19 @@ export function canFeature(profile, listings, listing, { now = new Date() } = {}
   return { ok: true, reason: "free" };
 }
 
+/** ¿Este plan se puede pagar por año? Solo si tiene precio anual. */
+export function hasYearly(plan) {
+  return PLANS[planId(plan)].yearly > 0;
+}
+
+/** El período que realmente se cobra: lo anual solo existe donde hay precio anual. */
+export function intervalFor(plan, interval) {
+  return interval === "year" && hasYearly(plan) ? "year" : "month";
+}
+
 export function priceFor(plan, interval) {
   const p = PLANS[planId(plan)];
-  return interval === "year" ? p.yearly : p.monthly;
+  return intervalFor(plan, interval) === "year" ? p.yearly : p.monthly;
 }
 
 /** Ahorro de pagar un año de una vez frente a doce meses sueltos. */
@@ -128,7 +138,7 @@ export function formatArs(value) {
 export function priceLine(plan, interval) {
   const amount = priceFor(plan, interval);
   if (!amount) return "Gratis";
-  return `${formatArs(amount)} por ${interval === "year" ? "año" : "mes"}`;
+  return `${formatArs(amount)} por ${intervalFor(plan, interval) === "year" ? "año" : "mes"}`;
 }
 
 const DAY = 86400000;

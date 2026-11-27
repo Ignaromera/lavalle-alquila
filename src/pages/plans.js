@@ -1,6 +1,6 @@
 import { startCheckout, getSession } from "../api.js";
 import { esc } from "../format.js";
-import { PLANS, PLAN_ORDER, formatArs, planFeatures, planId, yearlySavings } from "../plans.js";
+import { PLANS, PLAN_ORDER, formatArs, hasYearly, intervalFor, planFeatures, planId, yearlySavings } from "../plans.js";
 import { legalLinksHtml } from "./auth-ui.js";
 
 const PLAN_EXTRA = {
@@ -13,6 +13,11 @@ function priceBlock(id, interval) {
   const p = PLANS[id];
   if (id === "free") return `<p class="plan-price"><strong>$0</strong> <span>para siempre</span></p>`;
   const save = yearlySavings(id);
+  if (!hasYearly(id)) {
+    const note = interval === "year" ? "Solo mensual: este plan no tiene pago anual." : "Se cobra todos los meses.";
+    return `<p class="plan-price"><strong>${formatArs(p.monthly)}</strong> <span>por mes</span></p>
+      <p class="fine">${note}</p>`;
+  }
   if (interval === "year") {
     return `<p class="plan-price"><strong>${formatArs(p.yearly)}</strong> <span>por año</span></p>
       <p class="plan-save"><s>${formatArs(save.full)}</s> pagando mes a mes · <b>ahorrás ${formatArs(save.saved)} (${save.pct}%)</b></p>
@@ -25,7 +30,7 @@ function priceBlock(id, interval) {
 function badges(id, interval) {
   const out = [];
   if (id === "pro") out.push(`<span class="badge badge-gold">${interval === "year" ? "Mejor precio" : "Más completo"}</span>`);
-  if (id !== "free" && interval === "year") out.push(`<span class="badge badge-save">Ahorrás ${yearlySavings(id).pct}%</span>`);
+  if (hasYearly(id) && interval === "year") out.push(`<span class="badge badge-save">Ahorrás ${yearlySavings(id).pct}%</span>`);
   return out.join("");
 }
 
@@ -100,7 +105,7 @@ export async function renderPlans(view, route, session) {
         button.disabled = true;
         button.textContent = "Abriendo Mercado Pago…";
         try {
-          const { init_point: url } = await startCheckout(button.dataset.subscribe, interval);
+          const { init_point: url } = await startCheckout(button.dataset.subscribe, intervalFor(button.dataset.subscribe, interval));
           location.assign(url);
         } catch (error) {
           button.disabled = false;

@@ -4,7 +4,7 @@ import test from "node:test";
 import {
   GRACE_DAYS, PLANS, UNLIMITED, accessUntil, activeCount, canFeature, canPublishMore, featuredCount, formatArs, isUnlimited, limitLabel,
   listingsToExpire, listingsToUnfeature, pickSubscription, planFeatures, planId, planNote, priceFor, priceLine, renewalDate, subscriptionState,
-  usageLabel, yearlySavings,
+  usageLabel, yearlySavings, hasYearly, intervalFor,
 } from "../src/plans.js";
 import { addListing, createDemoStore, IDS, setFeatured, subscriptionFor, cancelSubscription } from "../src/demo-store.js";
 
@@ -27,9 +27,14 @@ test("planes: Gratis 1, Plus 3, Pro ilimitado con turnero y destacados", () => {
   assert.equal(planId(undefined), "free");
 });
 
-test("precios: Plus 6.900 / 49.000, Pro 14.900 / 100.000", () => {
+test("precios: Plus 6.900 sin anual, Pro 14.900 / 100.000", () => {
   assert.equal(priceFor("plus", "month"), 6900);
-  assert.equal(priceFor("plus", "year"), 49000);
+  assert.equal(priceFor("plus", "year"), 6900, "Plus no tiene anual: cae al mensual");
+  assert.equal(hasYearly("plus"), false);
+  assert.equal(hasYearly("pro"), true);
+  assert.equal(intervalFor("plus", "year"), "month");
+  assert.equal(intervalFor("pro", "year"), "year");
+  assert.equal(priceLine("plus", "year"), "$6.900 por mes");
   assert.equal(priceFor("pro", "month"), 14900);
   assert.equal(priceFor("pro", "year"), 100000);
   assert.equal(priceFor("free", "year"), 0);
@@ -40,13 +45,12 @@ test("precios: Plus 6.900 / 49.000, Pro 14.900 / 100.000", () => {
   assert.equal(formatArs(999), "$999");
 });
 
-test("ahorro anual: Pro $178.800 contra $100.000 es 44%; Plus 41%", () => {
+test("ahorro anual: Pro $178.800 contra $100.000 es 44%; Plus no tiene", () => {
   const pro = yearlySavings("pro");
   assert.deepEqual(pro, { full: 178800, yearly: 100000, saved: 78800, pct: 44, perMonth: 8333 });
   const plus = yearlySavings("plus");
-  assert.equal(plus.full, 82800);
-  assert.equal(plus.saved, 33800);
-  assert.equal(plus.pct, 41);
+  assert.equal(plus.saved, 0);
+  assert.equal(plus.pct, 0);
   assert.equal(yearlySavings("free").pct, 0);
 });
 

@@ -23,7 +23,7 @@ function makeWorld({ token = "APP_USR-test", env = {} } = {}) {
   const w = {
     subs: [],
     plans: {
-      plus: { id: "plus", name: "Plus", price_month_ars: 6900, price_year_ars: 49000 },
+      plus: { id: "plus", name: "Plus", price_month_ars: 6900, price_year_ars: 0 },
       pro: { id: "pro", name: "Pro", price_month_ars: 14900, price_year_ars: 100000 },
     },
     rpcs: [],
@@ -183,6 +183,22 @@ test("crear-suscripcion: rechaza planes o períodos raros y el plan Gratis", asy
     assert.equal(res.status, 400, JSON.stringify(bad));
   }
   assert.equal(w.mpCalls.length, 0);
+});
+
+test("crear-suscripcion: rechaza Plus anual (solo el Pro tiene anual), también si la tabla trae un precio anual", async () => {
+  const { createHandler } = await load("crear-suscripcion");
+  for (const yearPrice of [0, 49000]) {
+    const w = makeWorld();
+    w.plans.plus.price_year_ars = yearPrice;
+    const res = await createHandler(w.deps)(asUser({ action: "create", plan: "plus", interval: "year" }));
+    assert.equal(res.status, 400, `price_year=${yearPrice}`);
+    assert.equal((await res.json()).code, "sin_anual");
+    assert.equal(w.mpCalls.length, 0);
+    assert.equal(w.subs.length, 0);
+  }
+  const w = makeWorld();
+  const ok = await createHandler(w.deps)(asUser({ action: "create", plan: "plus", interval: "month" }));
+  assert.equal(ok.status, 200);
 });
 
 test("crear-suscripcion: si Mercado Pago falla, no deja una fila colgada y el mensaje es amable", async () => {

@@ -30,7 +30,7 @@ comment on table public.plans is 'Planes de Lavalle Alquila. max_listings = 1000
 
 insert into public.plans (id, name, max_listings, featured_slots, stats, turnero, price_month_ars, price_year_ars, sort_order) values
   ('free', 'Gratis', 1,    0, false, false,     0,      0, 1),
-  ('plus', 'Plus',   3,    0, true,  false,  6900,  49000, 2),
+  ('plus', 'Plus',   3,    0, true,  false,  6900,      0, 2),
   ('pro',  'Pro',    1000, 2, true,  true,  14900, 100000, 3)
 on conflict (id) do update set
   name = excluded.name,

@@ -49,7 +49,11 @@ test("planes: Pro anual muestra $100.000, el ahorro contra $178.800 y la insigni
   assert.match(pro, /Avisos ilimitados/);
   assert.match(pro, /Turnero/);
   assert.match(pro, /destacados/);
-  assert.match(view.querySelector("[data-testid=plan-plus]").textContent, /\$49\.000/);
+  const plus = view.querySelector("[data-testid=plan-plus]").textContent;
+  assert.match(plus, /\$6\.900/);
+  assert.match(plus, /por mes/);
+  assert.match(plus, /Solo mensual/);
+  assert.doesNotMatch(plus, /Ahorrás|\$49\.000|por año|\$82\.800/);
   assert.match(view.querySelector("[data-testid=plan-free]").textContent, /\$0/);
   await win.happyDOM.abort();
 });

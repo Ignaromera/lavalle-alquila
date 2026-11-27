@@ -10,6 +10,7 @@
 // Sin MP_ACCESS_TOKEN responde 503 con code "proximamente" y la página muestra un
 // mensaje amable. No usa librerías: solo fetch, así el mismo archivo se prueba con node.
 
+const YEARLY_PLANS = ["pro"]; // los únicos planes con precio anual
 const SITE = "https://lavallealquila.com.ar";
 const MP = "https://api.mercadopago.com";
 const ORIGINS = [SITE, "http://localhost:5173", "http://localhost:4173", "http://127.0.0.1:4173"];
@@ -107,10 +108,17 @@ async function createSubscription(deps, req, user, input, token) {
   if (!["plus", "pro"].includes(plan) || !["month", "year"].includes(interval)) {
     return reply(req, { code: "datos", message: "Elegí un plan y si lo pagás por mes o por año." }, 400);
   }
+  // Solo el Pro tiene pago anual (decisión de Ignacio). Se rechaza acá aunque la tabla plans diga otra cosa.
+  if (interval === "year" && !YEARLY_PLANS.includes(plan)) {
+    return reply(req, { code: "sin_anual", message: "Este plan se paga solo por mes. El pago anual es del plan Pro." }, 400);
+  }
   const db = rest(deps);
   const plans = await db.get(`plans?id=eq.${plan}&select=id,name,price_month_ars,price_year_ars`);
   const row = plans && plans[0];
   const amount = row ? (interval === "year" ? row.price_year_ars : row.price_month_ars) : 0;
+  if (interval === "year" && !(Number(row && row.price_year_ars) > 0)) {
+    return reply(req, { code: "sin_anual", message: "Este plan se paga solo por mes. El pago anual es del plan Pro." }, 400);
+  }
   if (!amount) return reply(req, { code: "sin_plan", message: "Ese plan todavía no está disponible." }, 500);
 
   const now = deps.now();
