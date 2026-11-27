@@ -50,12 +50,43 @@ function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 }
 
+
+type ListingRow = { id?: string; owner_id?: string; title?: string; status?: string };
+
+async function loadListing(sb: ReturnType<typeof createClient>, id: string): Promise<ListingRow | null> {
+  for (const table of ["listings", "listings_public"] as const) {
+    const { data, error } = await sb.from(table).select("id, owner_id, title, status").eq("id", id).maybeSingle();
+    if (data) return data as ListingRow;
+    if (error) console.error("lookup", table, error.message);
+  }
+  // Si el cliente de Supabase no puede leer la tabla, intentamos PostgREST a mano.
+  const url = Deno.env.get("SUPABASE_URL") ?? "";
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  if (!url || !key) return null;
+  for (const table of ["listings", "listings_public"]) {
+    try {
+      const r = await fetch(`${url}/rest/v1/${table}?id=eq.${id}&select=id,owner_id,title,status`, {
+        headers: { apikey: key, Authorization: `Bearer ${key}`, accept: "application/json" },
+      });
+      if (!r.ok) {
+        console.error("lookup fetch", table, r.status, await r.text());
+        continue;
+      }
+      const rows = await r.json();
+      if (Array.isArray(rows) && rows[0]) return rows[0] as ListingRow;
+    } catch (err) {
+      console.error("lookup fetch", table, err);
+    }
+  }
+  return null;
+}
+
 Deno.serve(async (req) => {
   const secret = Deno.env.get("WEBHOOK_SECRET") ?? "";
   const got = req.headers.get("x-webhook-secret") ?? "";
   if (req.method !== "POST" || !secret || !same(got, secret)) return json({ error: "no autorizado" }, 401);
 
-  let payload: { type?: string; user_id?: string; listing_id?: string };
+  let payload: { type?: string; user_id?: string; listing_id?: string; owner_id?: string; title?: string };
   try { payload = await req.json(); } catch { return json({ error: "json inválido" }, 400); }
 
   const apiKey = Deno.env.get("RESEND_API_KEY");
@@ -75,12 +106,20 @@ Deno.serve(async (req) => {
     userId = payload.user_id;
   } else if (kind === "listing_published") {
     if (!payload.listing_id || !UUID.test(payload.listing_id)) return json({ error: "listing_id inválido" }, 400);
-    const { data: l, error } = await sb.from("listings").select("id, owner_id, title, status").eq("id", payload.listing_id).single();
-    if (error || !l) return json({ error: "aviso no encontrado" }, 404);
-    if (l.status !== "active") return json({ skipped: "el aviso no está activo" });
-    userId = l.owner_id;
-    title = l.title;
-    link = `${SITE}/#/aviso/${l.id}`;
+    // El trigger manda owner_id y title para no depender de un SELECT
+    // (si el rol de la función no puede leer listings, el mail no salía).
+    title = typeof payload.title === "string" ? payload.title : "";
+    if (payload.owner_id && UUID.test(payload.owner_id)) userId = payload.owner_id;
+    link = `${SITE}/#/aviso/${payload.listing_id}`;
+    const listing = await loadListing(sb, payload.listing_id);
+    if (listing) {
+      if (listing.status && listing.status !== "active") return json({ skipped: "el aviso no está activo" });
+      userId = listing.owner_id || userId;
+      title = listing.title || title;
+      link = `${SITE}/#/aviso/${listing.id || payload.listing_id}`;
+    } else if (!userId) {
+      return json({ error: "aviso no encontrado" }, 404);
+    }
   } else {
     return json({ error: "tipo desconocido" }, 400);
   }

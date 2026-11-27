@@ -9,7 +9,7 @@ Se mandan por Resend (dominio lavallealquila.com.ar verificado, SMTP de Supabase
   Secrets: `RESEND_API_KEY`, `WEBHOOK_SECRET`. Se despliega sin verificación de JWT: la llaman los triggers con el header `x-webhook-secret`.
 - `migration-mails-automaticos.sql`: triggers con pg_net. Reemplazar `__WEBHOOK_SECRET__` antes de correrlo; no commitear el valor.
   - Bienvenida: una vez, cuando `auth.users.email_confirmed_at` pasa a tener fecha (Google ya nace confirmado). Evita el doble saludo con «Confirmá tu mail».
-  - Aviso publicado: AFTER INSERT en `listings` con status `active`.
+  - Aviso publicado: AFTER INSERT en `listings` con status `active`. El payload incluye `listing_id`, `owner_id` y `title` (la función no depende de poder leer la tabla).
 - El modo demo (`?demo=1`) nunca toca la base, así que no manda mails.
 
 Asuntos: confirmación «Confirmá tu mail en Lavalle Alquila»; contraseña «Recuperá tu contraseña de Lavalle Alquila»;

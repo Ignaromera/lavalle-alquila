@@ -114,3 +114,66 @@ test("el resto de las rutas no pisan un elemento null en modo configurado", asyn
   assert.ok(account);
   await closeDom(win);
 });
+
+
+test("en quincho o salón no se ve el precio por mes, y en vivienda sí", async () => {
+  const win = installDom();
+  const css = `
+    .field { display: flex; flex-direction: column; }
+    .checks { display: grid; }
+    [hidden] { display: none !important; }
+  `;
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.append(style);
+  const { renderPublish } = await import("../src/pages/publish.js");
+  const view = document.createElement("div");
+  document.body.append(view);
+  await renderPublish(view, { parts: [] }, session, {
+    loadListings: async () => [],
+    mountMap: () => {},
+  });
+  const form = view.querySelector("[data-testid=publish-form]");
+  const price = form.querySelector("[data-price]");
+  const month = form.querySelector("[data-month]");
+  const housing = form.querySelector("[data-housing]");
+  const venue = form.querySelector("[data-venue]");
+  assert.equal(price.hidden, false, "vivienda muestra el precio por mes");
+  assert.equal(getComputedStyle(price).display, "flex");
+  assert.match(price.textContent, /Precio por mes, en pesos/);
+
+  form.querySelector("[data-kind=venue]").click();
+  assert.equal(price.hidden, true);
+  assert.equal(month.hidden, true);
+  assert.equal(housing.hidden, true);
+  assert.equal(venue.hidden, false);
+  assert.equal(getComputedStyle(price).display, "none", "el CSS no puede pisar hidden");
+  assert.equal(getComputedStyle(month).display, "none");
+  assert.equal(getComputedStyle(housing).display, "none");
+  assert.notEqual(getComputedStyle(venue).display, "none");
+  assert.match(venue.textContent, /Horarios y precios/);
+
+  form.querySelector("[data-kind=housing]").click();
+  assert.equal(price.hidden, false);
+  assert.equal(venue.hidden, true);
+  assert.equal(getComputedStyle(price).display, "flex");
+  assert.match(price.textContent, /Precio por mes, en pesos/);
+  await closeDom(win);
+});
+
+test("el CSS de la app oculta de verdad los .field con hidden", async () => {
+  const win = installDom();
+  const { readFileSync } = await import("node:fs");
+  const css = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
+  assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important/);
+  const style = document.createElement("style");
+  style.textContent = css;
+  document.head.append(style);
+  const el = document.createElement("label");
+  el.className = "field";
+  el.hidden = true;
+  el.textContent = "Precio por mes, en pesos";
+  document.body.append(el);
+  assert.equal(getComputedStyle(el).display, "none");
+  await closeDom(win);
+});

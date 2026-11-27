@@ -68,7 +68,14 @@ set search_path = ''
 as $$
 begin
   if new.status = 'active' then
-    perform private.avisar_mail(jsonb_build_object('type', 'listing_published', 'listing_id', new.id));
+    -- Mandamos owner_id y title en el payload: la función no depende
+    -- de poder hacer SELECT sobre public.listings (eso hacía fallar el envío).
+    perform private.avisar_mail(jsonb_build_object(
+      'type', 'listing_published',
+      'listing_id', new.id,
+      'owner_id', new.owner_id,
+      'title', new.title
+    ));
   end if;
   return new;
 end;

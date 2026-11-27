@@ -66,7 +66,7 @@ function shell(route, session) {
       ${tab("home", "#/", "Inicio", "home")}
       ${tab("map", "#/mapa", "Mapa", "map")}
       ${tab("publish", "#/publicar", "Publicar", "plus")}
-      ${tab("venues", "#/quinchos", "Quinchos", "party")}
+      ${tab("venues", "#/quinchos", "Quinchos", "grill")}
       ${tab("account", "#/cuenta", "Yo", "user")}
     </nav>`;
 }

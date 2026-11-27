@@ -44,10 +44,11 @@ export function offerLine(offer) {
 
 export function priceLabel(listing) {
   const venue = listing.type === "quincho" || listing.type === "salon";
-  const offers = listing.offers || [];
-  if (venue && offers.length > 1) return `desde ${formatArs(listing.price_ars)}`;
-  if (venue && offers.length === 1) return `${formatArs(offers[0].price_ars)} · ${offers[0].name}`;
-  if (venue) return formatArs(listing.price_ars);
+  if (venue) {
+    const prices = (listing.offers || []).map((offer) => Number(offer.price_ars)).filter((n) => Number.isFinite(n) && n > 0);
+    const min = prices.length ? Math.min(...prices) : Number(listing.price_ars);
+    return Number.isFinite(min) && min > 0 ? `desde ${formatArs(min)}` : "";
+  }
   const unit = UNIT[listing.price_unit] || "mes";
   return `${formatArs(listing.price_ars)} / ${unit}`;
 }
