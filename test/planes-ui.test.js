@@ -233,7 +233,8 @@ test("mi cuenta: las estadísticas quedan para Plus y Pro solo cuando se enciend
   const { IDS } = await import("../src/demo-store.js");
   const view = document.createElement("div");
   document.body.append(view);
-  assert.equal(config.billingLive, false);
+  const billingOriginal = config.billingLive;
+  config.billingLive = false;
   await renderAccount(view, route(), await loginAs(IDS.carlos));
   assert.ok(view.querySelector("[data-testid=stats-panel]"), "con el cobro apagado, nadie pierde lo que ya tenía");
   config.billingLive = true;
@@ -248,7 +249,7 @@ test("mi cuenta: las estadísticas quedan para Plus y Pro solo cuando se enciend
     await renderAccount(pro, route(), await loginAs(IDS.marina));
     assert.ok(pro.querySelector("[data-testid=stats-panel]"));
   } finally {
-    config.billingLive = false;
+    config.billingLive = billingOriginal;
   }
   await win.happyDOM.abort();
 });
