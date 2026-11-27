@@ -206,5 +206,9 @@ Deno.serve(async (req) => {
     console.error("Resend", r.status, await r.text());
     return json({ error: "Resend rechazó el envío", status: r.status }, 502);
   }
-  return json({ ok: true, type: kind });
+  // Guardamos el id de Resend: queda en net._http_response y en los logs,
+  // así se puede rastrear si el mail se entregó, rebotó o fue a spam.
+  const sent = await r.json().catch(() => ({}));
+  console.log("enviado", kind, userId, sent?.id ?? "sin id");
+  return json({ ok: true, type: kind, id: sent?.id ?? null });
 });

@@ -21,3 +21,12 @@ bienvenida «Te damos la bienvenida a Lavalle Alquila»; aviso «Tu aviso ya est
 - `emails/07-suscripcion-activa.html`, `08-pago-fallido.html`, `09-suscripcion-cancelada.html` y `10-plan-terminado.html`: los cuatro mails nuevos. Se generan con `python3 emails/generar_suscripciones.py` a partir del 04.
 - Los manda `enviar-mail` (se regenera con `build_function.py`) cuando `migration-suscripciones.sql` dispara el trigger sobre `subscriptions`. Tipos: `subscription_active`, `payment_failed`, `subscription_cancelled`, `plan_ended`.
 - Asuntos: «Tu plan {Plus|Pro} está activo», «No pudimos cobrar tu suscripción», «Cancelaste tu suscripción», «Volviste al plan Gratis».
+
+## Rastrear un mail
+
+Desde la versión 7 de `enviar-mail`, la respuesta trae el id de Resend (`{"ok":true,"type":"welcome","id":"..."}`).
+Queda unas horas en `net._http_response` (y en los logs de la función como `enviado <tipo> <user_id> <id>`).
+Con ese id se busca el mail en el panel de Resend (Emails) para ver si se entregó, rebotó o fue a spam.
+La API key de la función es solo de envío, así que el estado no se puede consultar desde la función.
+
+Reenviar la bienvenida a mano (SQL Editor): `select private.avisar_mail(jsonb_build_object('type','welcome','user_id','<uuid>'::uuid));`
