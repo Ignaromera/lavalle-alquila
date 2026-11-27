@@ -45,12 +45,17 @@ export async function renderDetail(view, route, session) {
       ${isDemo() && mine ? demoNoticeHtml() : ""}
       ${listing.status === "hidden" ? `<p class="error">Este aviso está oculto por las denuncias. En el sitio real no aparece en el listado hasta que moderación lo restaure.</p>` : ""}
       <a class="back" href="${venue ? "#/quinchos" : "#/"}">${icon("arrow")} Volver</a>
-      <div class="gallery" tabindex="0" aria-label="Fotos del aviso">
+      <div class="gallery${photos.length > 1 ? " has-many" : ""}" tabindex="0" aria-label="Fotos del aviso">
         <div class="gallery-track">
           ${photos.length ? photos.map((src, index) => `<img src="${esc(photoUrl(src))}" alt="${esc((listing.example ? "Foto de ejemplo" : "Foto") + ` ${index + 1}: ${listing.title}`)}" />`).join("") : `<div class="photo-fallback big">${esc(typeLabel(listing.type))}</div>`}
         </div>
+        ${photos.length > 1 ? `
+          <button type="button" class="gallery-btn gallery-btn-prev" data-testid="gallery-prev" aria-label="Foto anterior">${icon("arrow")}</button>
+          <button type="button" class="gallery-btn gallery-btn-next" data-testid="gallery-next" aria-label="Foto siguiente">${icon("arrow")}</button>
+          <div class="gallery-count" data-testid="gallery-count" aria-live="polite">1 / ${photos.length}</div>
+        ` : ""}
       </div>
-      ${photos.length > 1 ? `<div class="dots" aria-hidden="true">${photos.map((_, index) => `<i${index === 0 ? ' class="on"' : ""}></i>`).join("")}</div>` : ""}
+      ${photos.length > 1 ? `<div class="dots" role="tablist" aria-label="Elegir foto">${photos.map((_, index) => `<button type="button" class="dot${index === 0 ? " on" : ""}" data-gallery-dot="${index}" aria-label="Foto ${index + 1} de ${photos.length}" aria-current="${index === 0 ? "true" : "false"}"></button>`).join("")}</div>` : ""}
       <div class="head-chips">
         ${listing.featured ? '<span class="badge badge-gold">Destacado</span>' : ""}
         ${isNewListing(listing) ? '<span class="badge badge-nuevo">Nuevo</span>' : ""}
@@ -99,17 +104,7 @@ export async function renderDetail(view, route, session) {
       ${shareFallbackHtml({ title: listing.title, text: shareText, url: shareUrl })}
     </article>`;
 
-  const track = view.querySelector(".gallery-track");
-  const dots = [...view.querySelectorAll(".dots i")];
-  if (track && dots.length) {
-    track.addEventListener("scroll", () => {
-      const items = [...track.children];
-      const left = track.scrollLeft;
-      let current = 0;
-      items.forEach((item, index) => { if (item.offsetLeft - track.offsetLeft - 20 <= left + 10) current = index; });
-      dots.forEach((dot, index) => dot.classList.toggle("on", index === current));
-    }, { passive: true });
-  }
+  bindGallery(view, photos.length);
   bindShare(view, {
     title: listing.title,
     text: shareText,
@@ -163,6 +158,71 @@ export async function renderDetail(view, route, session) {
       }
     });
   }
+}
+
+
+function bindGallery(view, total) {
+  const track = view.querySelector(".gallery-track");
+  if (!track || total < 2) return;
+
+  const dots = [...view.querySelectorAll("[data-gallery-dot]")];
+  const countEl = view.querySelector("[data-testid=gallery-count]");
+  const items = () => [...track.children];
+  let current = 0;
+
+  function currentFromScroll() {
+    const list = items();
+    if (!list.length) return 0;
+    const origin = list[0].offsetLeft;
+    let index = 0;
+    list.forEach((item, i) => {
+      if (item.offsetLeft - origin - 20 <= track.scrollLeft + 10) index = i;
+    });
+    return index;
+  }
+
+  function sync(index) {
+    current = index;
+    dots.forEach((dot, i) => {
+      const on = i === current;
+      dot.classList.toggle("on", on);
+      dot.setAttribute("aria-current", on ? "true" : "false");
+    });
+    if (countEl) countEl.textContent = `${current + 1} / ${total}`;
+  }
+
+  function goTo(index) {
+    const list = items();
+    if (!list.length) return;
+    const next = ((index % list.length) + list.length) % list.length;
+    const left = Math.max(0, list[next].offsetLeft - list[0].offsetLeft);
+    if (typeof track.scrollTo === "function") track.scrollTo({ left, behavior: "smooth" });
+    else track.scrollLeft = left;
+    sync(next);
+  }
+
+  track.addEventListener("scroll", () => sync(currentFromScroll()), { passive: true });
+  view.querySelector("[data-testid=gallery-prev]")?.addEventListener("click", () => goTo(current - 1));
+  view.querySelector("[data-testid=gallery-next]")?.addEventListener("click", () => goTo(current + 1));
+  dots.forEach((dot) => {
+    dot.addEventListener("click", () => goTo(Number(dot.dataset.galleryDot)));
+  });
+
+  if (view._galleryKeys) view._galleryKeys.abort();
+  const keys = new AbortController();
+  view._galleryKeys = keys;
+  document.addEventListener("keydown", (event) => {
+    if (!view.isConnected || !view.querySelector(".gallery.has-many")) {
+      keys.abort();
+      return;
+    }
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    if (event.altKey || event.ctrlKey || event.metaKey) return;
+    if (event.target?.closest?.("input, textarea, select, [contenteditable=true]")) return;
+    if (document.body.classList.contains("sheet-open")) return;
+    event.preventDefault();
+    goTo(current + (event.key === "ArrowRight" ? 1 : -1));
+  }, { signal: keys.signal });
 }
 
 function priceHtml(listing) {
