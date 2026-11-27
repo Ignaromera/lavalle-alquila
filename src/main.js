@@ -14,6 +14,7 @@ import { renderPublish } from "./pages/publish.js";
 import { renderSeek, renderSeekNew, renderSeeks } from "./pages/seeks.js";
 import { bindPublishChoice, publishChoiceHtml } from "./publish-choice.js";
 import { renderSubscription } from "./pages/subscription.js";
+import { appendLegalFooter, sessionEmail } from "./pages/auth-ui.js";
 import { givenName } from "./format.js";
 import { resetPageMeta } from "./meta.js";
 import { parseRoute } from "./router.js";
@@ -115,6 +116,7 @@ async function renderOnce({ scroll = true } = {}) {
     if (!view?.isConnected) return;
     view.innerHTML = `<p class="error">${esc(error.message || "No se pudo abrir esta pantalla")}</p>`;
   }
+  if (view?.isConnected) appendLegalFooter(view, sessionEmail(session));
   if (scroll) window.scrollTo(0, 0);
 }
 

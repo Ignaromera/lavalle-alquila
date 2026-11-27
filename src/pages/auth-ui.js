@@ -2,12 +2,31 @@ import { isDemo, requestEmailCode, signInWithGoogle, verifyEmailCode } from "../
 import { esc } from "../format.js";
 import { toast } from "../toast.js";
 
-export function legalLinksHtml() {
+export const REGRET_MAIL = "jirfcarp@gmail.com";
+
+export function sessionEmail(session) {
+  return String(session?.user?.email || session?.profile?.email || "").trim();
+}
+
+export function regretMailto(email = "") {
+  const subject = "Arrepentimiento de suscripción";
+  const lines = ["Quiero ejercer el derecho de arrepentimiento de mi suscripción."];
+  if (email) lines.push("", `Email de la cuenta: ${email}`);
+  return `mailto:${REGRET_MAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
+}
+
+export function legalLinksHtml(email = "") {
   const base = import.meta.env?.BASE_URL || "./";
   return `<nav class="legal" aria-label="Información legal">
     <a href="${base}privacidad.html">Política de privacidad</a>
     <a href="${base}terminos.html">Términos y condiciones</a>
+    <a href="${regretMailto(email)}" data-regret data-testid="boton-arrepentimiento">Botón de arrepentimiento</a>
   </nav>`;
+}
+
+export function appendLegalFooter(view, email = "") {
+  if (!view || view.querySelector("nav.legal")) return;
+  view.insertAdjacentHTML("beforeend", legalLinksHtml(email));
 }
 
 export function authBoxHtml() {

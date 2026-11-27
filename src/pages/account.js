@@ -19,7 +19,7 @@ import { config } from "../config.js";
 import { render } from "../bus.js";
 import { upsellHtml } from "../cards.js";
 import { demoNoticeHtml } from "../demo-ui.js";
-import { authBoxHtml, bindAuth, demoLoginsHtml, legalLinksHtml } from "./auth-ui.js";
+import { authBoxHtml, bindAuth, demoLoginsHtml, legalLinksHtml, sessionEmail } from "./auth-ui.js";
 import { bindSeekActions, seekOwnerCard } from "./seeks.js";
 import { confirmWaText, esc, formatDay, formatWhen, givenName, priceLabel, shiftLabel, typeLabel, waLink } from "../format.js";
 import { isVenue } from "../geo.js";
@@ -46,7 +46,7 @@ export async function renderAccount(view, route, session) {
       ${authBoxHtml()}
       ${demoLoginsHtml(DEMO_LOGIN)}
       ${isDemo() ? `<p><a href="#/admin">Ver moderación de ejemplo</a></p>` : ""}
-      ${legalLinksHtml()}`;
+      ${legalLinksHtml(sessionEmail(session))}`;
     bindAuth(view, () => render());
     view.querySelectorAll("[data-demo]").forEach((button) => {
       button.addEventListener("click", async () => {
@@ -95,7 +95,7 @@ export async function renderAccount(view, route, session) {
       ${canModerate(session) ? `<a class="btn btn-ghost" href="#/admin">${isDemo() ? "Moderación de ejemplo" : "Moderación"}</a>` : ""}
       <button type="button" class="btn btn-ghost" data-logout>Salir</button>
     </div>
-    ${legalLinksHtml()}`;
+    ${legalLinksHtml(sessionEmail(session))}`;
 
   view.querySelector("[data-profile]").addEventListener("submit", async (event) => {
     event.preventDefault();

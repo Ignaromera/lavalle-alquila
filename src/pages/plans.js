@@ -1,7 +1,7 @@
 import { startCheckout, getSession } from "../api.js";
 import { esc } from "../format.js";
 import { PLANS, PLAN_ORDER, formatArs, hasYearly, intervalFor, planFeatures, planId, yearlySavings } from "../plans.js";
-import { legalLinksHtml } from "./auth-ui.js";
+import { legalLinksHtml, sessionEmail } from "./auth-ui.js";
 
 const PLAN_EXTRA = {
   free: "Para empezar, sin tarjeta.",
@@ -76,7 +76,7 @@ export async function renderPlans(view, route, session) {
       <p><strong>Cómo se paga.</strong> En la página de Mercado Pago, con tarjeta de crédito o débito, y se renueva solo. No pedimos ni guardamos los datos de tu tarjeta. Podés cancelar cuando quieras desde ${session ? `<a href="#/suscripcion">Mi suscripción</a>` : "Mi suscripción"}.</p>
       <p class="fine">Precios en pesos argentinos. ${session ? "" : "Para suscribirte, primero entrá a tu cuenta."}</p>
     </aside>
-    ${legalLinksHtml()}`;
+    ${legalLinksHtml(sessionEmail(session))}`;
 
   const grid = view.querySelector("[data-plans]");
   const paint = () => {

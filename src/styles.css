@@ -274,6 +274,7 @@ form .btn-primary.btn-block[type=submit] { margin-top: 28px; }
 .or { text-align: center; color: var(--muted); margin: 14px 0; font-weight: 600; }
 .legal { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px 16px; margin: 22px 0 8px; font-size: 14px; }
 .legal a { color: var(--muted); }
+.legal a[data-regret] { color: var(--ink); font-weight: 600; text-decoration: underline; }
 .stats { margin: 8px 0 16px; }
 .week-chart { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; height: 148px; align-items: end; margin-top: 8px; }
 .week-col { display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; }

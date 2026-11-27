@@ -5,7 +5,7 @@ import {
   PLANS, activeCount, featuredCount, formatArs, isUnlimited, longDate, planOf, renewalDate, subscriptionState, usageLabel,
 } from "../plans.js";
 import { toast } from "../toast.js";
-import { legalLinksHtml } from "./auth-ui.js";
+import { legalLinksHtml, regretMailto, sessionEmail } from "./auth-ui.js";
 
 function stateBlock(sub, plan, state, profile) {
   const until = longDate(sub?.access_until);
@@ -41,6 +41,7 @@ export async function renderSubscription(view, route, session) {
         <p class="lede">Entrá a tu cuenta para ver tu plan.</p>
       </section>
       <p><a class="btn btn-primary" href="#/cuenta">Entrar</a> <a class="btn btn-ghost" href="#/planes">Ver los planes</a></p>
+      <p><a class="btn btn-ghost" href="${regretMailto()}" data-regret data-testid="boton-arrepentimiento">Botón de arrepentimiento</a></p>
       ${legalLinksHtml()}`;
     return;
   }
@@ -77,8 +78,10 @@ export async function renderSubscription(view, route, session) {
     </div>
     <aside class="plan-foot">
       <p><strong>Si cancelás o falla un pago.</strong> Tu plan sigue hasta la fecha de arriba. Después pasás al plan Gratis: queda activo el aviso más reciente y los demás vencen. No se borra nada: los renovás cuando vuelvas a suscribirte.</p>
+      <p><a class="btn btn-ghost" href="${regretMailto(sessionEmail(session))}" data-regret data-testid="boton-arrepentimiento">Botón de arrepentimiento</a></p>
+      <p class="fine">Si te suscribiste hace menos de 10 días y te arrepentís, tocá el botón. Te respondemos con un código de trámite dentro de las 24 horas.</p>
     </aside>
-    ${legalLinksHtml()}`;
+    ${legalLinksHtml(sessionEmail(session))}`;
 
   view.querySelector("[data-cancel]")?.addEventListener("click", async (event) => {
     const until = longDate(sub.access_until);
