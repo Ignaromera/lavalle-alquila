@@ -75,5 +75,6 @@ test("el primer render espera la sesión inicial y se vuelve a pintar al entrar 
   assert.equal(authEventShouldRender("SIGNED_IN"), true);
   assert.equal(authEventShouldRender("SIGNED_OUT"), true);
   assert.equal(authEventShouldRender("USER_UPDATED"), true);
+  assert.equal(authEventShouldRender("PASSWORD_RECOVERY"), true);
   assert.equal(authEventShouldRender("TOKEN_REFRESHED"), false);
 });

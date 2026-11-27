@@ -2,6 +2,7 @@ import {
   DEMO_LOGIN,
   getListing,
   isDemo,
+  isPasswordRecovery,
   listSlots,
   myBookingRequests,
   myListings,
@@ -19,7 +20,7 @@ import { config } from "../config.js";
 import { render } from "../bus.js";
 import { upsellHtml } from "../cards.js";
 import { demoNoticeHtml } from "../demo-ui.js";
-import { authBoxHtml, bindAuth, demoLoginsHtml, legalLinksHtml, sessionEmail } from "./auth-ui.js";
+import { authBoxHtml, bindAuth, bindPasswordForm, demoLoginsHtml, legalLinksHtml, recoveryPasswordHtml, sessionEmail } from "./auth-ui.js";
 import { bindSeekActions, seekOwnerCard } from "./seeks.js";
 import { confirmWaText, esc, formatDay, formatWhen, givenName, priceLabel, shiftLabel, typeLabel, waLink } from "../format.js";
 import { isVenue } from "../geo.js";
@@ -41,7 +42,7 @@ export async function renderAccount(view, route, session) {
     view.innerHTML = `
       <section class="page-head">
         <h1 tabindex="-1">Tu cuenta</h1>
-        <p class="lede">Entrá con Google o con tu email para publicar, renovar o ver los pedidos del turnero. Después te pedimos nombre y WhatsApp.</p>
+        <p class="lede">Creá tu cuenta con tu mail y una contraseña, o entrá con Google, para publicar, renovar o ver los pedidos del turnero. Después te pedimos nombre y WhatsApp. Tu mail no se muestra en el sitio.</p>
       </section>
       ${authBoxHtml()}
       ${demoLoginsHtml(DEMO_LOGIN)}
@@ -73,12 +74,14 @@ export async function renderAccount(view, route, session) {
     ${isDemo() ? demoNoticeHtml() : ""}
     <p class="plan-note" data-testid="plan-note">Plan <strong>${esc(plan.name)}</strong> · ${esc(note.text)} ${note.cta ? `${esc(note.cta)} ` : ""}${turnero ? "El turnero está habilitado en tus quinchos y salones. " : ""}<a href="#/${plan.id === "free" ? "planes" : "suscripcion"}">${plan.id === "free" ? "Ver planes" : "Mi suscripción"}</a></p>
     ${showStats ? statsPanelHtml(listings, seeks, stats, recentDays(7)) : statsLockedHtml()}
+    ${isPasswordRecovery() ? recoveryPasswordHtml() : ""}
     ${!session.profile.whatsapp ? `<p class="note">Para publicar, completá tu nombre y tu WhatsApp. Si entraste con Google, el nombre puede venir solo.</p>` : ""}
     <form class="stack profile-form" data-profile>
       <label class="field">Nombre<input name="full_name" required value="${esc(session.profile.full_name)}" /></label>
       <label class="field">WhatsApp<input name="whatsapp" required inputmode="tel" value="${esc(session.profile.whatsapp)}" /></label>
       <button class="btn btn-ghost" type="submit">Guardar perfil</button>
     </form>
+    ${isPasswordRecovery() ? "" : recoveryPasswordHtml()}
     <h2>Mis avisos</h2>
     ${slots ? `<p class="fine" data-testid="featured-count">Destacados: ${featuredCount(listings)} de ${slots}. Un aviso destacado sale primero en las listas.</p>` : `<p class="fine">Los avisos destacados salen primero en las listas. Vienen con el plan Pro. <a href="#/planes">Ver planes</a></p>`}
     <div class="stack">
@@ -97,6 +100,7 @@ export async function renderAccount(view, route, session) {
     </div>
     ${legalLinksHtml(sessionEmail(session))}`;
 
+  bindPasswordForm(view, () => render());
   view.querySelector("[data-profile]").addEventListener("submit", async (event) => {
     event.preventDefault();
     const data = new FormData(event.currentTarget);

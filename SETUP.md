@@ -44,11 +44,11 @@ insert into public.admin_emails (email) values ('tu@email.com');
 
 Usá el mismo email con el que vas a entrar a la página. Sin esa fila, la moderación no te deja pasar aunque pongas el email en el código.
 
-## 4. Login con Google y con email
+## 4. Login con Google y con email + contraseña
 
-La página pide primero **Entrar con Google** y, debajo, el email. El correo de Supabase puede traer un enlace o un código. La plantilla puede quedar la de fábrica (solo el enlace, sin `{{ .Token }}`). Si el código está activado, en este proyecto tiene 8 dígitos: el campo acepta de 6 a 10. El texto de la pantalla lo dice.
+La página tiene **Continuar con Google**, **Entrar** y **Creá tu cuenta**. El identificador es el mail (no hay nombre de usuario) y nunca se muestra en los avisos. Quien se registra pone mail, contraseña (mínimo 8 caracteres) y la repite. Con **Confirm email** activado le llega un mail con el botón **Confirmar mi cuenta**. Al tocarlo vuelve al sitio con la sesión iniciada, y completa nombre y WhatsApp. Las próximas veces entra con mail y contraseña. **Olvidé mi contraseña** (o **Creá tu contraseña**) manda un link para poner una nueva: también sirve para las cuentas que ya existían sin contraseña (las que se crearon con Google o con el código de antes).
 
-1. **Authentication** → **Providers** → **Email**: prendido. **Confirm email** activado.
+1. **Authentication** → **Providers** → **Email**: prendido. **Confirm email** tiene que estar **activado**.
 2. **Authentication** → **Providers** → **Google**: prendido, con el Client ID y el Client Secret de Google Cloud.
 3. En Google Cloud, la pantalla de consentimiento tiene que apuntar a:
    - `https://lavallealquila.com.ar/privacidad.html`
@@ -61,10 +61,9 @@ La página pide primero **Entrar con Google** y, debajo, el email. El correo de 
      - `https://lavallealquila.com.ar`
      - `http://127.0.0.1:5173`
      - `http://localhost:5173`
+6. **Authentication** → **Email templates**: pegá las plantillas de `supabase/emails/01-confirmar-mail.html` (Confirm signup, asunto «Confirmá tu cuenta en Lavalle Alquila») y `02-recuperar-contrasena.html` (Reset password). Los botones apuntan a `lavallealquila.com.ar` con `token_hash`, para que al confirmar o restablecer la sesión quede iniciada aunque el link se abra en otro teléfono.
 
-Google y el enlace del correo vuelven a la página con `?code=`. La app usa PKCE (`detectSessionInUrl`), así que no choca con las rutas `#/aviso/...`. Después del ingreso, si falta el nombre o el WhatsApp, se completan en **Yo** antes de publicar. El nombre de Google se propone solo; el WhatsApp siempre lo escribe la persona.
-
-Si más adelante querés que el correo traiga también el código, en **Email templates** → **Magic Link** podés sumar `{{ .Token }}`. No es obligatorio.
+Google vuelve a la página con `?code=` (PKCE). Los mails de confirmación y de contraseña vuelven con `?token_hash=` y `#/cuenta`. Después del ingreso, si falta el nombre o el WhatsApp, se completan en **Tu cuenta** antes de publicar. El nombre de Google se propone solo; el WhatsApp siempre lo escribe la persona.
 
 El plan gratis manda pocos correos por hora. No lo pruebes diez veces seguidas.
 

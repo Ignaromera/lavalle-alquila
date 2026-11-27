@@ -57,8 +57,136 @@ function getClient() {
   return client;
 }
 
+export const MIN_PASSWORD_LENGTH = 8;
+const RECOVERY_KEY = "lavalle-password-recovery";
+
 export function authEventShouldRender(event) {
-  return event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED";
+  return event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED" || event === "PASSWORD_RECOVERY";
+}
+
+export function authRedirectTo() {
+  return `${location.origin}${location.pathname}`;
+}
+
+export function validatePasswords(password, repeat) {
+  if (String(password || "").length < MIN_PASSWORD_LENGTH) {
+    throw new Error("La contraseña tiene que tener al menos 8 caracteres.");
+  }
+  if (password !== repeat) {
+    throw new Error("Las contraseñas no coinciden.");
+  }
+}
+
+export function isPasswordRecovery() {
+  try {
+    return sessionStorage.getItem(RECOVERY_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function markPasswordRecovery() {
+  try {
+    sessionStorage.setItem(RECOVERY_KEY, "1");
+  } catch {
+    /* modo privado */
+  }
+}
+
+export function clearPasswordRecovery() {
+  try {
+    sessionStorage.removeItem(RECOVERY_KEY);
+  } catch {
+    /* modo privado */
+  }
+}
+
+export class AuthNeedConfirmError extends Error {
+  constructor(email) {
+    super("Primero tenés que confirmar tu mail. Revisá la bandeja de entrada, Promociones y Spam.");
+    this.name = "AuthNeedConfirmError";
+    this.code = "email_not_confirmed";
+    this.email = email;
+  }
+}
+
+export function parseAuthLinkParams(href = typeof location !== "undefined" ? location.href : "") {
+  const url = new URL(href, "https://lavallealquila.com.ar/");
+  const search = url.searchParams;
+  const hash = url.hash || "";
+  const implicit = /^#(?:access_token|refresh_token|error|error_description|expires_at|expires_in|token_type|type|code)=/i.test(hash);
+  const hashBody = hash.startsWith("#") ? hash.slice(1) : hash;
+  const hashQuery = implicit ? hashBody : (hashBody.includes("?") ? hashBody.slice(hashBody.indexOf("?") + 1) : "");
+  const fromHash = new URLSearchParams(hashQuery);
+  const pick = (key) => search.get(key) || fromHash.get(key) || "";
+  return {
+    tokenHash: pick("token_hash"),
+    type: pick("type"),
+    code: search.get("code") || fromHash.get("code") || "",
+    error: pick("error_description") || pick("error"),
+    implicit,
+  };
+}
+
+function cleanAuthParamsFromUrl() {
+  if (typeof history === "undefined" || typeof location === "undefined") return;
+  const url = new URL(location.href);
+  for (const key of ["token_hash", "type", "code", "error", "error_code", "error_description"]) {
+    url.searchParams.delete(key);
+  }
+  if (/^#(?:access_token|refresh_token|error|error_description|expires_at|expires_in|token_type|type|code)=/i.test(url.hash)) {
+    url.hash = "#/cuenta";
+  } else if (url.hash.includes("token_hash=")) {
+    url.hash = "#/cuenta";
+  } else if (!url.hash || url.hash === "#") {
+    url.hash = "#/cuenta";
+  }
+  history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+export async function consumeAuthRedirect() {
+  if (isDemo()) return { kind: "none" };
+  const params = parseAuthLinkParams();
+  const client = getClient();
+  const { data: current, error: sessionError } = await client.auth.getSession();
+  if (sessionError) throw asError(sessionError);
+
+  if (params.tokenHash && params.type) {
+    const { data, error } = await client.auth.verifyOtp({
+      token_hash: params.tokenHash,
+      type: params.type,
+    });
+    cleanAuthParamsFromUrl();
+    if (error) {
+      return { kind: "error", message: "El enlace no sirve o está vencido. Pedí uno nuevo." };
+    }
+    if (params.type === "recovery") markPasswordRecovery();
+    return { kind: params.type === "recovery" ? "recovery" : "confirmed", session: data.session };
+  }
+
+  if (params.error) {
+    cleanAuthParamsFromUrl();
+    return {
+      kind: "error",
+      message: "No se pudo abrir el enlace. Si ya confirmaste el mail, entrá con tu contraseña.",
+    };
+  }
+
+  if (current?.session && (params.code || params.implicit || params.type)) {
+    if (params.type === "recovery") markPasswordRecovery();
+    cleanAuthParamsFromUrl();
+    return { kind: params.type === "recovery" || isPasswordRecovery() ? "recovery" : "confirmed", session: current.session };
+  }
+
+  if (params.code && !current?.session) {
+    cleanAuthParamsFromUrl();
+    return {
+      kind: "error",
+      message: "Si confirmaste el mail, ya podés entrar con tu contraseña. Si el enlace falló, pedí uno nuevo.",
+    };
+  }
+
+  return { kind: "none" };
 }
 
 export function watchAuth(onChange) {
@@ -197,32 +325,81 @@ export async function signInWithGoogle() {
   if (error) throw asError(error);
 }
 
-export async function requestEmailCode(email) {
+export async function signUpWithPassword(email, password, repeat) {
+  validatePasswords(password, repeat);
+  const trimmed = email.trim();
   if (isDemo()) {
-    throw new Error("En el modo ejemplo no se envían correos. Entrá con una cuenta de ejemplo o configurá Supabase.");
+    throw new Error("En el modo ejemplo no se crean cuentas. Usá una cuenta de ejemplo o configurá Supabase.");
   }
-  const { error } = await getClient().auth.signInWithOtp({
-    email: email.trim(),
-    options: {
-      emailRedirectTo: `${location.origin}${location.pathname}`,
-      shouldCreateUser: true,
-    },
+  const { data, error } = await getClient().auth.signUp({
+    email: trimmed,
+    password,
+    options: { emailRedirectTo: `${authRedirectTo()}#/cuenta` },
+  });
+  if (error) {
+    if (/already registered|already been registered|user already/i.test(error.message)) {
+      throw new Error("Este mail ya tiene una cuenta. Entrá o creá tu contraseña con «Olvidé mi contraseña».");
+    }
+    throw asError(error);
+  }
+  if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    throw new Error("Este mail ya tiene una cuenta. Entrá o creá tu contraseña con «Olvidé mi contraseña».");
+  }
+  if (data.session) return { status: "session", email: trimmed };
+  return { status: "confirm", email: trimmed };
+}
+
+export async function signInWithPassword(email, password) {
+  const trimmed = email.trim();
+  if (isDemo()) {
+    throw new Error("En el modo ejemplo no se entra con contraseña. Usá una cuenta de ejemplo.");
+  }
+  const { error } = await getClient().auth.signInWithPassword({ email: trimmed, password });
+  if (!error) return;
+  const code = String(error.code || "");
+  const msg = String(error.message || "");
+  if (code === "email_not_confirmed" || /email not confirmed|not confirmed/i.test(msg)) {
+    throw new AuthNeedConfirmError(trimmed);
+  }
+  if (code === "invalid_credentials" || /invalid login|invalid credentials/i.test(msg)) {
+    throw new Error("El mail o la contraseña no son correctos.");
+  }
+  throw asError(error);
+}
+
+export async function resendSignupEmail(email) {
+  const trimmed = email.trim();
+  if (isDemo()) {
+    throw new Error("En el modo ejemplo no se envían correos.");
+  }
+  const { error } = await getClient().auth.resend({
+    type: "signup",
+    email: trimmed,
+    options: { emailRedirectTo: `${authRedirectTo()}#/cuenta` },
   });
   if (error) throw asError(error);
 }
 
-export async function verifyEmailCode(email, token) {
-  if (isDemo()) throw new Error("En el modo ejemplo no hay códigos.");
-  const code = token.trim();
-  if (!/^\d{6,10}$/.test(code)) {
-    throw new Error("El código tiene entre 6 y 10 números. Si el correo trajo un enlace, abrilo en este teléfono.");
+export async function requestPasswordReset(email) {
+  const trimmed = email.trim();
+  if (isDemo()) {
+    throw new Error("En el modo ejemplo no se envían correos. Usá una cuenta de ejemplo.");
   }
-  const { error } = await getClient().auth.verifyOtp({
-    email: email.trim(),
-    token: code,
-    type: "email",
+  const { error } = await getClient().auth.resetPasswordForEmail(trimmed, {
+    redirectTo: `${authRedirectTo()}#/cuenta`,
   });
-  if (error) throw new Error("El código no sirve o está vencido. Pedí otro, o abrí el enlace del correo.");
+  if (error) throw asError(error);
+}
+
+export async function updatePassword(password, repeat) {
+  validatePasswords(password, repeat);
+  if (isDemo()) {
+    clearPasswordRecovery();
+    return;
+  }
+  const { error } = await getClient().auth.updateUser({ password });
+  if (error) throw asError(error);
+  clearPasswordRecovery();
 }
 
 export async function signOut() {

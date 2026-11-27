@@ -1,5 +1,5 @@
 import "./styles.css";
-import { getSession, isDemo, watchAuth } from "./api.js";
+import { consumeAuthRedirect, getSession, isDemo, watchAuth } from "./api.js";
 import { demoBannerHtml } from "./demo-ui.js";
 import { onRender } from "./bus.js";
 import { createRenderQueue } from "./render-queue.js";
@@ -14,7 +14,7 @@ import { renderPublish } from "./pages/publish.js";
 import { renderSeek, renderSeekNew, renderSeeks } from "./pages/seeks.js";
 import { bindPublishChoice, publishChoiceHtml } from "./publish-choice.js";
 import { renderSubscription } from "./pages/subscription.js";
-import { appendLegalFooter, sessionEmail } from "./pages/auth-ui.js";
+import { appendLegalFooter, headerAccountLabel, sessionEmail } from "./pages/auth-ui.js";
 import { givenName } from "./format.js";
 import { resetPageMeta } from "./meta.js";
 import { parseRoute } from "./router.js";
@@ -71,7 +71,7 @@ function shell(route, session) {
         <img src="${base}brand/lavalle-alquila-marca.svg" width="30" height="24" alt="" />
         <span class="wm-text">Lavalle Alquila <small>Mendoza</small></span>
       </a>
-      <a class="who" href="#/cuenta">${name ? esc(name) : "Entrar"}</a>
+      <a class="who" href="#/cuenta" data-testid="header-auth">${esc(headerAccountLabel(name))}</a>
     </header>
     ${isDemo() ? demoBannerHtml() : ""}
     <main id="view" class="view"><p class="fine">Cargando…</p></main>
@@ -131,4 +131,24 @@ window.addEventListener("hashchange", () => {
 watchAuth(() => {
   void renderApp({ scroll: false });
 });
-void renderApp();
+
+async function boot() {
+  let redirect = { kind: "none" };
+  try {
+    redirect = await consumeAuthRedirect();
+  } catch (error) {
+    console.warn(error);
+    redirect = { kind: "error", message: error.message };
+  }
+  if (redirect.kind === "error" && redirect.message) {
+    const { toast } = await import("./toast.js");
+    toast(redirect.message);
+  }
+  if ((redirect.kind === "confirmed" || redirect.kind === "recovery") && location.hash !== "#/cuenta") {
+    location.hash = "#/cuenta";
+    return;
+  }
+  void renderApp();
+}
+
+void boot();

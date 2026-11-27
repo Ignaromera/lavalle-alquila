@@ -4,6 +4,7 @@ Se mandan por Resend (dominio lavallealquila.com.ar verificado, SMTP de Supabase
 
 - `emails/*.html`: los 6 diseños. 01, 02, 05 y 06 son las plantillas de Auth de Supabase
   (Confirm signup, Reset password, Magic link, Change email). 03 y 04 los manda la Edge Function.
+  Las plantillas 01 y 02 usan `token_hash` y vuelven a `https://lavallealquila.com.ar/?token_hash=...#/cuenta`, para dejar la sesión iniciada al confirmar o al elegir una contraseña nueva. Hay que pegarlas en **Authentication → Email templates** del proyecto.
 - `functions/enviar-mail/`: Edge Function que manda bienvenida y «aviso publicado» con la API de Resend.
   `index.ts` se genera con `python3 build_function.py` a partir de `index.ts.tpl` y los HTML.
   Secrets: `RESEND_API_KEY`, `WEBHOOK_SECRET`. Se despliega sin verificación de JWT: la llaman los triggers con el header `x-webhook-secret`.
@@ -12,7 +13,7 @@ Se mandan por Resend (dominio lavallealquila.com.ar verificado, SMTP de Supabase
   - Aviso publicado: AFTER INSERT en `listings` con status `active`. El payload incluye `listing_id`, `owner_id` y `title` (la función no depende de poder leer la tabla).
 - El modo demo (`?demo=1`) nunca toca la base, así que no manda mails.
 
-Asuntos: confirmación «Confirmá tu mail en Lavalle Alquila»; contraseña «Recuperá tu contraseña de Lavalle Alquila»;
+Asuntos: confirmación «Confirmá tu cuenta en Lavalle Alquila»; contraseña «Recuperá tu contraseña de Lavalle Alquila»;
 magic link «Tu link para entrar a Lavalle Alquila»; cambio de mail «Confirmá tu nuevo mail en Lavalle Alquila»;
 bienvenida «Te damos la bienvenida a Lavalle Alquila»; aviso «Tu aviso ya está publicado».
 

@@ -37,6 +37,10 @@ p { margin: 0; }
 .wm-text { display: inline-flex; align-items: baseline; gap: 6px; }
 .wordmark small { font-family: var(--body); font-weight: 600; font-size: 10.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
 .who { font-weight: 600; font-size: 14px; text-decoration: none; padding: 9px 16px; border-radius: 999px; border: 1.5px solid var(--ink); color: var(--ink); white-space: nowrap; }
+@media (max-width: 480px) {
+  .wordmark small { display: none; }
+  .who { padding: 8px 10px; font-size: 13px; }
+}
 .demo-banner { margin: 8px 20px 0; padding: 10px 14px; border-radius: var(--r-sm); background: var(--cream); font-size: 13.5px; font-weight: 600; }
 @media (min-width: 1000px) { .demo-banner { max-width: 920px; margin: 8px auto 0; } }
 
@@ -265,6 +269,35 @@ form .btn-primary.btn-block[type=submit] { margin-top: 28px; }
 
 /* cajas, cuenta, búsquedas */
 .note-box, .auth-box, .owner-card, .seek, .stat-card { margin: 12px 0; padding: 16px 18px; border-radius: var(--r-sm); background: var(--cream); }
+.auth-box h2 { margin: 0 0 12px; }
+.auth-first, .auth-notice {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  background: #fff;
+  border: 1.5px solid var(--orange);
+  font-size: 15.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+}
+.auth-notice { border-color: var(--mustard); }
+.auth-box .segment { margin: 4px 0 16px; }
+.auth-links { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-top: 14px; }
+.auth-links .linkish, button.linkish {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  font-size: 14.5px;
+  color: var(--orange-deep);
+  text-decoration: underline;
+  cursor: pointer;
+  min-height: 44px;
+}
+.auth-box .btn-block { width: 100%; }
+.sheet-actions { display: flex; flex-wrap: wrap; gap: 10px; }
 .owner-card h2, .owner-card h3, .seek h2, .seek h3 { margin-top: 0; }
 .empty { padding: 18px; border-radius: var(--r-sm); background: var(--cream); color: var(--muted); }
 .error { margin-top: 12px; padding: 12px 14px; border-radius: var(--r-sm); background: #f6e0dc; color: var(--brick); font-weight: 600; }

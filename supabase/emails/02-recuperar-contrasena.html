@@ -17,11 +17,11 @@
 <tr><td style="padding:24px 32px 0 32px;" align="left"><p style="margin:0 0 14px 0;font-family:'Instrument Sans',Arial,Helvetica,sans-serif;font-size:16px;line-height:25px;color:#323232;">¡Hola! Recibimos un pedido para cambiar la contraseña de <strong>{{ .Email }}</strong>.</p><p style="margin:0 0 14px 0;font-family:'Instrument Sans',Arial,Helvetica,sans-serif;font-size:16px;line-height:25px;color:#323232;">Tocá el botón para elegir una nueva. Por seguridad, el link funciona una sola vez y vence en un rato.</p></td></tr>
 <tr><td style="padding:8px 32px 8px 32px;" align="center">
   <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="width:100%;"><tr><td align="center" bgcolor="#FC6F20" style="border-radius:999px;">
-    <a href="{{ .ConfirmationURL }}" target="_blank" style="display:block;padding:15px 24px;font-family:'Instrument Sans',Arial,Helvetica,sans-serif;font-size:17px;line-height:20px;font-weight:700;color:#323232;text-decoration:none;border-radius:999px;">Elegir contraseña nueva</a>
+    <a href="https://lavallealquila.com.ar/?token_hash={{ .TokenHash }}&amp;type=recovery#/cuenta" target="_blank" style="display:block;padding:15px 24px;font-family:'Instrument Sans',Arial,Helvetica,sans-serif;font-size:17px;line-height:20px;font-weight:700;color:#323232;text-decoration:none;border-radius:999px;">Elegir contraseña nueva</a>
   </td></tr></table>
 </td></tr>
 <tr><td style="padding:14px 32px 0 32px;" align="left">
-  <p style="margin:0;font-family:'Instrument Sans',Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#6b5a4a;">Si el botón no funciona, copiá y pegá este link en tu navegador:<br><a href="{{ .ConfirmationURL }}" style="color:#C34B0B;word-break:break-all;">{{ .ConfirmationURL }}</a></p>
+  <p style="margin:0;font-family:'Instrument Sans',Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#6b5a4a;">Si el botón no funciona, copiá y pegá este link en tu navegador:<br><a href="https://lavallealquila.com.ar/?token_hash={{ .TokenHash }}&amp;type=recovery#/cuenta" style="color:#C34B0B;word-break:break-all;">https://lavallealquila.com.ar/?token_hash={{ .TokenHash }}&amp;type=recovery#/cuenta</a></p>
 </td></tr>
 
 <tr><td style="padding:20px 32px 28px 32px;" align="left"><p style="margin:0;font-family:'Instrument Sans',Arial,Helvetica,sans-serif;font-size:13px;line-height:20px;color:#6b5a4a;">Si no pediste este cambio, ignorá el mensaje: tu contraseña actual sigue igual.</p></td></tr>
