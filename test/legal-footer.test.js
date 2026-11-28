@@ -54,7 +54,7 @@ for (const page of ["terminos", "privacidad"]) {
 test("términos: arrepentimiento de 10 días, renovación, cancelar, jurisdicción Mendoza y Defensa del Consumidor", () => {
   const html = readFileSync(new URL("../public/terminos.html", import.meta.url), "utf8");
   for (const re of [/id="arrepentimiento"/, /10 días corridos/, /artículo 34 de la Ley 24\.240/, /Resolución 424\/2020/,
-    /renuevan solos/, /«Mi suscripción»/, /Monotributo/, /Provincia de Mendoza/, /No es una inmobiliaria ni un intermediario/i,
+    /renuevan solos/, /«Mi suscripción»/, /Monotributo/, /CUIT 20-44438000-5/, /Barrio Epi Equen casa 8, Tulumaya, Lavalle, Mendoza/, /Provincia de Mendoza/, /No es una inmobiliaria ni un intermediario/i,
     /https:\/\/www\.argentina\.gob\.ar\/produccion\/defensadelconsumidor\/formulario/, /Vigentes desde el 27 de noviembre de 2026/,
     /\$6\.900/, /\$14\.900/, /\$100\.000/, /no verifica la identidad/i]) {
     assert.match(html, re);
@@ -63,7 +63,7 @@ test("términos: arrepentimiento de 10 días, renovación, cancelar, jurisdicci�
 
 test("privacidad: Ley 25.326, proveedores y la leyenda de la AAIP", () => {
   const html = readFileSync(new URL("../public/privacidad.html", import.meta.url), "utf8");
-  for (const re of [/Ley 25\.326/, /Supabase/, /Mercado Pago/, /nunca los ve ni los guarda/, /Google/, /Resend/,
+  for (const re of [/Ley 25\.326/, /CUIT 20-44438000-5/, /Barrio Epi Equen casa 8, Tulumaya, Lavalle, Mendoza/, /Supabase/, /Mercado Pago/, /nunca los ve ni los guarda/, /Google/, /Resend/,
     /La AGENCIA DE ACCESO A LA INFORMACIÓN PÚBLICA, en su carácter de Órgano de Control de la Ley N° 25\.326, tiene la atribución de atender las denuncias y reclamos/,
     /artículo 14, inciso 3/, /borrar tu cuenta entera/]) {
     assert.match(html, re);
